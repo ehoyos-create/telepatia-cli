@@ -1,16 +1,71 @@
 import { getAnonymizedTranscript } from "./api/aiBackend.js";
 import { gql } from "./api/graphql.js";
-import { GET_SESSION, GET_SESSION_STATUS, GET_TEMPLATE, LIST_TEMPLATES, TERMINAL_STATUSES } from "./api/queries.js";
+import {
+  COUNT_SESSIONS,
+  GET_SESSION,
+  GET_SESSION_STATUS,
+  GET_TEMPLATE,
+  LIST_SESSIONS,
+  LIST_TEMPLATES,
+  SESSION_STATUSES,
+  TERMINAL_STATUSES,
+} from "./api/queries.js";
 import { currentClaims } from "./auth/session.js";
-import { CliError } from "./errors.js";
+import { CliError, EXIT } from "./errors.js";
 import { noteSections, sectionsToMarkdown, transcriptToText, type TemplateNode } from "./note.js";
 import { c, choose, fmtDate, info, sleep } from "./ui.js";
 
 export type Session = Record<string, any>;
 
+export interface ListConsultationsOptions {
+  search?: string;
+  status?: string[];
+  limit?: number;
+  offset?: number;
+}
+
+function consultationsFilter(o: ListConsultationsOptions, accountId: string): Record<string, unknown> {
+  return {
+    accountId,
+    status: o.status?.length ? o.status : [...SESSION_STATUSES],
+    orderBy: "createdAt",
+    orderDirection: "desc",
+    ...(o.search ? { query: o.search } : {}),
+  };
+}
+
+/** Consultations, newest first. */
+export async function listConsultations(o: ListConsultationsOptions = {}): Promise<Session[]> {
+  const { accountId } = await currentClaims();
+  const filter = { ...consultationsFilter(o, accountId), limit: o.limit ?? 20, offset: o.offset ?? 0 };
+  const { scribeSessions } = await gql<{ scribeSessions: Session[] }>(LIST_SESSIONS, { filter });
+  return scribeSessions;
+}
+
+export async function countConsultations(o: ListConsultationsOptions = {}): Promise<number> {
+  const { accountId } = await currentClaims();
+  const { scribeSessionsPage } = await gql<{ scribeSessionsPage: { totalCount: number } }>(COUNT_SESSIONS, {
+    filter: consultationsFilter(o, accountId),
+  });
+  return scribeSessionsPage.totalCount;
+}
+
+export const templateNameOf = (s: Session): string | undefined =>
+  s.selectedTemplates?.find((t: any) => t.isPrimary)?.nameSnapshot ?? s.scribeSessionConfiguration?.name ?? undefined;
+
+/** The few fields an agent needs to pick a consultation — a fraction of the raw record. */
+export const consultationSummary = (s: Session) => ({
+  id: s.id,
+  createdAt: s.createdAt,
+  status: s.status,
+  patient: s.patient?.fullName ?? s.patientName ?? null,
+  patientId: s.patient?.id ?? s.scribePatientId ?? null,
+  template: templateNameOf(s) ?? null,
+});
+
 export async function fetchSession(id: string): Promise<Session> {
   const { scribeSession } = await gql<{ scribeSession: Session | null }>(GET_SESSION, { id });
-  if (!scribeSession) throw new CliError(`No se encontró la consulta ${id}`);
+  if (!scribeSession) throw new CliError(`No se encontró la consulta ${id}`, EXIT.NOT_FOUND, "telepatia consultations list --search <paciente>");
   return scribeSession;
 }
 
@@ -92,7 +147,7 @@ export async function waitForSession(
     if (TERMINAL_STATUSES.has(status)) return status;
     await sleep(5000);
   }
-  throw new CliError(`Tiempo de espera agotado (${timeoutMin} min). Revisa luego con: telepatia consultations show ${id}`);
+  throw new CliError(`La consulta ${id} sigue en proceso (última: ${last}). Espera más o revísala luego.`, EXIT.TIMEOUT, `telepatia consultations wait ${id}`);
 }
 
 export interface Template {
@@ -115,13 +170,13 @@ export async function listTemplates(): Promise<Template[]> {
 /** Resolves --template (id or case-insensitive name) or asks interactively. */
 export async function resolveTemplate(arg?: string): Promise<Template> {
   const templates = await listTemplates();
-  if (!templates.length) throw new CliError("Tu cuenta no tiene plantillas. Crea una en scribe.telepatia.ai/templates.");
+  if (!templates.length) throw new CliError("Tu cuenta no tiene plantillas. Crea una en scribe.telepatia.ai/templates.", EXIT.NOT_FOUND);
   if (arg) {
     const t = templates.find((x) => x.id === arg) ?? templates.find((x) => x.name.toLowerCase() === arg.toLowerCase());
-    if (!t) throw new CliError(`No existe la plantilla "${arg}". Ver: telepatia templates`);
+    if (!t) throw new CliError(`No existe la plantilla "${arg}".`, EXIT.NOT_FOUND, "telepatia templates");
     return t;
   }
   if (templates.length === 1) return templates[0];
-  if (!process.stdin.isTTY) throw new CliError("Indica la plantilla con --template <id|nombre>. Ver: telepatia templates");
+  if (!process.stdin.isTTY) throw new CliError(`Indica la plantilla con --template. Disponibles: ${templates.map((t) => t.name).join(", ")}`, EXIT.NEEDS_INPUT, "telepatia templates");
   return choose("Plantilla", templates, (t) => t.name);
 }

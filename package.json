@@ -9,6 +9,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md",
     "LICENSE",
     "docs"
@@ -20,7 +21,7 @@
     "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test test/note.test.ts",
+    "test": "node --import tsx --test test/note.test.ts test/output.test.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

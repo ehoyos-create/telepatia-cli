@@ -15,6 +15,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). E
 
 ## [0.1.1] — 2026-09-27
 
+### Agregado
+
+- **Modo agente** (AI-first): sin terminal, o con `CLAUDECODE` / `TELEPATIA_OUTPUT=json`, los datos salen en JSON compacto sin campos vacíos, los errores son JSON en stderr con `code` y `hint`, y los códigos de salida son estables (2 uso, 3 sesión, 4 no encontrado, 5 timeout, 6 API, 7 falta input). Opciones globales `--json`, `--human`, `--fields` y `--quiet`.
+- `telepatia mcp`: servidor MCP por stdio con 14 herramientas (consultas, notas, transcripciones, pacientes, plantillas y crear consultas desde un audio).
+- `telepatia skill install`: instala una skill de Claude Code con el flujo de uso del CLI.
+- `telepatia schema`: todos los comandos, argumentos, opciones y códigos de salida en JSON.
+- Login no interactivo en dos pasos: `login --otp` → `login --code`, `login --device` → `login --wait`, y `login --account` para elegir institución. También `--password-stdin`.
+- `record --duration`, y timeouts como `90s`, `5m` o `1h` en `wait` y `upload`.
+
+### Cambiado
+
+- Sin terminal, `upload` y `record` devuelven el id sin esperar a la nota; `--wait` fuerza la espera.
+- Los comandos de acción (`delete`, `regenerate`, `recover`, `wait`, `export`, `logout`, `accounts switch`) imprimen un resultado JSON con `next` en modo agente.
+- Sin terminal, `delete` exige `--yes` en vez de fallar al intentar preguntar.
+- La opción `--json` ahora es global.
+
 ### Corregido
 
 - La "última consulta" de un paciente ahora usa `lastSession` cuando el servidor devuelve `lastConsultation` vacío.

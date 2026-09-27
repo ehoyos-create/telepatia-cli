@@ -1,8 +1,9 @@
 import type { Command } from "commander";
+import { wantJson } from "../output.js";
 import { gql } from "../api/graphql.js";
 import { toCountryName } from "../countries.js";
 import { GET_PATIENT, GET_PATIENTS, PATIENT_TIMELINE, SEARCH_PATIENTS, UPSERT_PATIENT } from "../api/queries.js";
-import { CliError } from "../errors.js";
+import { CliError, EXIT } from "../errors.js";
 import { fmtDate, info, printJson, table, c } from "../ui.js";
 
 type Patient = Record<string, any>;
@@ -16,11 +17,11 @@ export const lastVisitOf = (p: Patient): string | undefined => p.lastConsultatio
  * Maps --sort to the API's ordering. With no sort the server's default order is used, like the web
  * app: ordering by lastVisit silently drops patients who have no consultations yet.
  */
-function sortFilter(sort?: string): Record<string, string> {
+export function sortFilter(sort?: string): Record<string, string> {
   if (!sort) return {};
   if (sort === "name" || sort === "fullName") return { orderBy: "fullName", orderDirection: "asc" };
   if (sort === "recent" || sort === "lastVisit") return { orderBy: "lastVisit", orderDirection: "desc" };
-  throw new CliError(`--sort debe ser "name" o "recent" (recibido: "${sort}")`);
+  throw new CliError(`--sort debe ser "name" o "recent" (recibido: "${sort}")`, EXIT.USAGE);
 }
 
 function printPatients(list: Patient[]) {
@@ -44,7 +45,6 @@ export function registerPatients(program: Command) {
     .option("-n, --limit <n>", "cuántos", "25")
     .option("--offset <n>", "saltar N", "0")
     .option("--sort <orden>", "name (alfabético) | recent (última consulta; solo incluye pacientes con consultas)")
-    .option("--json", "salida JSON")
     .action(async (o) => {
       const { getPatients } = await gql<{ getPatients: { patients: Patient[]; totalCount: number } }>(GET_PATIENTS, {
         filter: {
@@ -54,7 +54,7 @@ export function registerPatients(program: Command) {
           ...sortFilter(o.sort),
         },
       });
-      if (o.json) return printJson(getPatients);
+      if (wantJson()) return printJson(getPatients);
       printPatients(getPatients.patients);
       info(c.dim(`${getPatients.patients.length} de ${getPatients.totalCount}`));
     });
@@ -64,14 +64,13 @@ export function registerPatients(program: Command) {
     .description("Busca pacientes por nombre o identificación")
     .argument("<texto>")
     .option("-n, --limit <n>", "cuántos", "25")
-    .option("--json", "salida JSON")
     .action(async (q: string, o) => {
       const { searchScribePatients } = await gql<{ searchScribePatients: Patient[] }>(SEARCH_PATIENTS, {
         query: q,
         limit: Number(o.limit),
         offset: 0,
       });
-      if (o.json) return printJson(searchScribePatients);
+      if (wantJson()) return printJson(searchScribePatients);
       printPatients(searchScribePatients);
     });
 
@@ -79,11 +78,10 @@ export function registerPatients(program: Command) {
     .command("show")
     .description("Datos de un paciente")
     .argument("<id>")
-    .option("--json", "salida JSON")
     .action(async (id: string, o) => {
       const { scribePatient: p } = await gql<{ scribePatient: Patient | null }>(GET_PATIENT, { id });
-      if (!p) throw new CliError(`No se encontró el paciente ${id}`);
-      if (o.json) return printJson(p);
+      if (!p) throw new CliError(`No se encontró el paciente ${id}`, EXIT.NOT_FOUND, "telepatia patients search <nombre>");
+      if (wantJson()) return printJson(p);
       const rows: [string, string][] = [
         ["Nombre", p.fullName ?? p.patientName ?? "—"],
         ["Identificación", idOf(p) || "—"],
@@ -99,12 +97,11 @@ export function registerPatients(program: Command) {
     .command("history")
     .description("Historial de consultas de un paciente")
     .argument("<id>")
-    .option("--json", "salida JSON")
     .action(async (id: string, o) => {
       const { timelineByPatient } = await gql<{ timelineByPatient: { total: number; sessions: Patient[] } }>(PATIENT_TIMELINE, {
         input: { patientDocumentId: id, limit: 50, descending: true },
       });
-      if (o.json) return printJson(timelineByPatient);
+      if (wantJson()) return printJson(timelineByPatient);
       table(
         timelineByPatient.sessions.map((s) => ({
           id: s.id,
@@ -124,7 +121,6 @@ export function registerPatients(program: Command) {
     .option("--id-type <tipo>", "tipo de documento (p.ej. CC, CPF, DNI)")
     .option("--id-value <número>", "número de documento")
     .option("--country <país>", "país del documento: código (CO, BR, MX…) o nombre (COLOMBIA)")
-    .option("--json", "salida JSON")
     .action(async (name: string, o) => {
       const identifications = o.idValue
         ? [{ idType: o.idType ?? null, idValue: o.idValue, country: o.country ? toCountryName(o.country) : null }]
@@ -132,7 +128,7 @@ export function registerPatients(program: Command) {
       const { updateOrCreateScribePatient: p } = await gql<{ updateOrCreateScribePatient: Patient }>(UPSERT_PATIENT, {
         input: { fullName: name, identifications },
       });
-      if (o.json) return printJson(p);
+      if (wantJson()) return printJson(p);
       console.log(p.id);
     });
 }
