@@ -135,7 +135,7 @@ La forma más fácil de usar el CLI es ejecutar `telepatia` **sin argumentos** (
           ████    ████                ██    ███████ ███████ ███████ ██      ██   ██    ██    ██ ██   ██
           ████    ████
           ████    ████             Scribe · tu consulta, desde la terminal
-          ████    ████             v0.1.1 · proyecto comunitario, no oficial
+          ████    ████             v0.1.2 · proyecto comunitario, no oficial
           ████    ████
            ▀▀▀    ▀▀▀              ● medico@ejemplo.com · Clínica Ejemplo
 
@@ -166,7 +166,7 @@ La forma más fácil de usar el CLI es ejecutar `telepatia` **sin argumentos** (
 | **Nueva consulta** | **Grabar ahora** con el micrófono (Enter para terminar) o **subir un audio** que ya tengas; puedes arrastrar el archivo a la terminal. Luego eliges la plantilla y el paciente: buscar uno existente, crear uno nuevo o dejarla sin paciente. El CLI sube el audio, espera la nota y la muestra. |
 | **Mis consultas** | Lista paginada (15 por página) con paciente, fecha, estado y plantilla. Al abrir una consulta puedes: ver la nota, ver la transcripción, **copiar la nota al portapapeles**, guardarla como archivo Markdown, regenerarla, destrabarla si quedó procesando o eliminarla (con confirmación). |
 | **Buscar consulta** | Igual que "Mis consultas", filtrando por texto (por ejemplo el nombre del paciente). |
-| **Pacientes** | Buscar por nombre o documento, o ver los más recientes. Muestra la ficha (documento, teléfono, email) y el historial de consultas; puedes abrir cualquiera de ellas. |
+| **Pacientes** | Buscar por nombre o documento, o ver todos tus pacientes. Muestra la ficha (documento, teléfono, email) y el historial de consultas; puedes abrir cualquiera de ellas. |
 | **Plantillas** | Ver tus plantillas y, para cada una, sus secciones con las instrucciones que sigue la IA. |
 | **Mi cuenta** | Ver con qué email e institución estás conectado, cambiar de institución o cerrar sesión. |
 
@@ -493,7 +493,7 @@ En macOS, la primera vez el sistema pedirá permiso de micrófono para tu termin
 |---|---|---|
 | `-n, --limit <n>` | 25 | Cuántos |
 | `--offset <n>` | 0 | Paginación |
-| `--sort <campo>` | `lastVisit` | `lastVisit` (última consulta, descendente) o `fullName` (alfabético) |
+| `--sort <orden>` | orden del servidor | `name` (alfabético) o `recent` (última consulta primero). Ojo: con `recent` solo aparecen los pacientes que ya tienen consultas; es un comportamiento de la API de Telepatia |
 | `--json` | — | Incluye `totalCount` |
 
 #### `telepatia patients search <texto> [-n N] [--json]`
@@ -516,7 +516,7 @@ Crea un paciente (o actualiza uno existente con la misma identificación) e impr
 |---|---|
 | `--id-type <tipo>` | Tipo de documento: CC, CPF, DNI… |
 | `--id-value <número>` | Número de documento |
-| `--country <código>` | País del documento: CO, BR, MX… |
+| `--country <país>` | País del documento: código de 2 letras (`CO`, `BR`, `MX`…) o nombre en inglés (`COLOMBIA`, `COSTA_RICA`…). El CLI lo convierte al formato que exige Telepatia |
 | `--json` | Salida JSON |
 
 ```sh

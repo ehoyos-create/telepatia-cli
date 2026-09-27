@@ -479,21 +479,21 @@ async function newConsultation(): Promise<void> {
 
 async function patientsScreen(): Promise<void> {
   for (;;) {
-    const q = ok(await p.text({ message: "Buscar paciente", placeholder: "vacío = ver los más recientes", defaultValue: "" }));
+    const q = ok(await p.text({ message: "Buscar paciente", placeholder: "vacío = ver todos", defaultValue: "" }));
     const list = await withSpinner("Buscando…", async () => {
       if (q.trim())
         return (await gql<{ searchScribePatients: any[] }>(SEARCH_PATIENTS, { query: q.trim(), limit: 20, offset: 0 }))
           .searchScribePatients;
       return (
         await gql<{ getPatients: { patients: any[] } }>(GET_PATIENTS, {
-          filter: { limit: 20, offset: 0, includeAnonymousPatients: false, orderBy: "lastVisit", orderDirection: "desc" },
+          filter: { limit: 20, offset: 0, includeAnonymousPatients: false },
         })
       ).getPatients.patients;
     });
     if (!list) return;
     const id = ok(
       await p.select({
-        message: q.trim() ? `Pacientes · "${q.trim()}"` : "Pacientes recientes",
+        message: q.trim() ? `Pacientes · "${q.trim()}"` : "Tus pacientes",
         options: [
           ...list.map((x) => ({
             value: x.id as string,
