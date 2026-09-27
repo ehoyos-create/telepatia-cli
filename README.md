@@ -25,7 +25,7 @@ Ejecuta `telepatia` sin argumentos y se abre un **menú interactivo**, con el lo
           ████    ████                ██    ███████ ███████ ███████ ██      ██   ██    ██    ██ ██   ██
           ████    ████
           ████    ████             Scribe · tu consulta, desde la terminal
-          ████    ████             v0.1.2 · proyecto comunitario, no oficial
+          ████    ████             v0.2.0 · proyecto comunitario, no oficial
           ████    ████
            ▀▀▀    ▀▀▀              ● medico@ejemplo.com · Clínica Ejemplo
 

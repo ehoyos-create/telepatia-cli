@@ -66,6 +66,10 @@ export function prune(v: unknown): unknown {
 export function pick(v: unknown, paths: string[]): unknown {
   if (Array.isArray(v)) return v.map((x) => pick(x, paths));
   if (!v || typeof v !== "object") return v;
+  // A wrapper like { patients: [...], totalCount }: apply the fields to the rows inside it.
+  if (!paths.some((p) => p.split(".")[0] in v)) {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x && typeof x === "object" ? pick(x, paths) : x]));
+  }
   const out: Record<string, unknown> = {};
   for (const path of paths) {
     const keys = path.split(".");

@@ -136,7 +136,7 @@ La forma más fácil de usar el CLI es ejecutar `telepatia` **sin argumentos** (
           ████    ████                ██    ███████ ███████ ███████ ██      ██   ██    ██    ██ ██   ██
           ████    ████
           ████    ████             Scribe · tu consulta, desde la terminal
-          ████    ████             v0.1.2 · proyecto comunitario, no oficial
+          ████    ████             v0.2.0 · proyecto comunitario, no oficial
           ████    ████
            ▀▀▀    ▀▀▀              ● medico@ejemplo.com · Clínica Ejemplo
 

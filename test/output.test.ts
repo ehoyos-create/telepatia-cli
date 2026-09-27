@@ -11,3 +11,8 @@ test("pick keeps dot-paths on objects and arrays", () => {
   const rows = [{ id: 1, status: "ok", patient: { fullName: "Ana", id: 9 }, extra: true }, { id: 2, status: "x" }];
   assert.deepEqual(pick(rows, ["id", "patient.fullName"]), [{ id: 1, patient: { fullName: "Ana" } }, { id: 2 }]);
 });
+
+test("pick reaches into wrapper objects", () => {
+  const page = { totalCount: 2, patients: [{ id: 1, fullName: "Ana", ids: [] }, { id: 2 }] };
+  assert.deepEqual(pick(page, ["id"]), { totalCount: 2, patients: [{ id: 1 }, { id: 2 }] });
+});
