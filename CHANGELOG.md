@@ -2,18 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
-## [0.1.2] — 2026-09-27
-
-### Corregido
-
-- `patients list` (y la pantalla Pacientes del menú) mostraba solo los pacientes con consultas, porque ordenaba por última visita. Ahora usa el orden del servidor, igual que la web, y muestra todos.
-- `patients create --country` acepta el código de país (`CO`) o el nombre (`COLOMBIA`) y lo convierte al valor que exige la API. Antes, `--country CO` fallaba.
-
-### Cambiado
-
-- `patients list --sort` ahora acepta `name` o `recent`. `fullName` y `lastVisit` siguen funcionando.
-
-## [0.1.1] — 2026-09-27
+## [0.2.0] — 2026-09-27
 
 ### Agregado
 
@@ -30,6 +19,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). E
 - Los comandos de acción (`delete`, `regenerate`, `recover`, `wait`, `export`, `logout`, `accounts switch`) imprimen un resultado JSON con `next` en modo agente.
 - Sin terminal en stdin, `delete` exige `--yes` en vez de fallar al intentar preguntar.
 - La opción `--json` ahora es global.
+
+## [0.1.2] — 2026-09-27
+
+### Corregido
+
+- `patients list` (y la pantalla Pacientes del menú) mostraba solo los pacientes con consultas, porque ordenaba por última visita. Ahora usa el orden del servidor, igual que la web, y muestra todos.
+- `patients create --country` acepta el código de país (`CO`) o el nombre (`COLOMBIA`) y lo convierte al valor que exige la API. Antes, `--country CO` fallaba.
+
+### Cambiado
+
+- `patients list --sort` ahora acepta `name` o `recent`. `fullName` y `lastVisit` siguen funcionando.
+
+## [0.1.1] — 2026-09-27
 
 ### Corregido
 
