@@ -42,7 +42,8 @@ Estado: ✅ cubierto · 🟡 parcial o solo vía `telepatia api` · ❌ no cubie
 | Función | CLI |
 |---|---|
 | Lista, búsqueda, ficha e historial de pacientes | ✅ `patients` |
-| Crear paciente | ✅ `patients create` |
+| Crear paciente | ✅ `patients create` (en lote: receta en la [guía](GUIA.md#crear-pacientes-en-lote-desde-un-csv)) |
+| Eliminar paciente | ❌ todavía no; hazlo en la web (la API tiene `softDeleteScribePatient`) |
 | Ver plantillas y sus secciones | ✅ `templates` |
 | Crear o editar plantillas, generar una plantilla desde archivos | ❌ usa la web (editor visual) |
 | Telepatia Intelligence (chat clínico, escalas) | 🟡 escalas vía `api rest GET ai-backend /v1/intelligence/scales?language=es` |

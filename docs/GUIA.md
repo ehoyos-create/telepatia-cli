@@ -665,6 +665,26 @@ PID=$(telepatia patients search "María Pérez" --json | jq -r '.[0].id')
 telepatia patients history "$PID"
 ```
 
+### Crear pacientes en lote desde un CSV
+
+Con un archivo `pacientes.csv` (con encabezado y sin comas dentro de los campos):
+
+```csv
+nombre,tipo,documento,pais
+María Pérez,CC,1020304050,CO
+Juan Gómez,CC,1098765432,CO
+```
+
+```sh
+set -o pipefail
+tail -n +2 pacientes.csv | while IFS=, read -r nombre tipo doc pais; do
+  id=$(telepatia patients create "$nombre" --id-type "$tipo" --id-value "$doc" --country "$pais" --json </dev/null | jq -r .id) \
+    && echo "ok     $nombre  $id" || echo "FALLÓ  $nombre"
+done
+```
+
+`create` actualiza al paciente si ya existe uno con la misma identificación, así que puedes volver a correr el script sin duplicar. El `</dev/null` evita que el comando lea el resto del CSV. Solo carga nombre y documento; teléfonos y emails se agregan en la web.
+
 ### Detectar consultas con problemas y recuperarlas
 
 ```sh
@@ -788,6 +808,7 @@ El CLI trabaja con **datos de salud**, así que su diseño es conservador:
 - **No es oficial**: depende de APIs privadas que Telepatia puede cambiar en cualquier momento.
 - **No hay transcripción en vivo** en `record` (ver la [sección 5.3](#53-crear-consultas-upload-y-record)).
 - **No hay login con Google.** Alternativas: `--otp` o `--device`.
+- **No se pueden eliminar pacientes.** Hazlo en la web. La API tiene `softDeleteScribePatient`, pero el CLI todavía no lo usa.
 - **No se pueden editar notas.** Hazlo en la web; el CLI sirve para leer, exportar y regenerar.
 - **Órdenes médicas, recetas, firma digital, envío por WhatsApp y PHR** no están incluidos, a propósito: son acciones con efectos legales o que llegan al paciente y conviene hacerlas con la interfaz.
 - **Funciones por institución** (hospitalización, triage, dictado, integraciones con EMR): dependen de configuración que el CLI no controla.

@@ -57,6 +57,18 @@ Las operaciones que usa el CLI están en [`src/api/queries.ts`](../src/api/queri
 
 En total la web usa unas 108 operaciones. También cubren agenda (`appointments`), dictado (`medicalRecordConfigurations`, `reportEvents`), hospitalización (`encounters`), memorias del usuario, auditoría, órdenes médicas y el chat "Intelligence".
 
+### Pacientes: detalles de la API
+
+Comprobado contra el servidor en septiembre de 2026:
+
+- **`lastConsultation` suele venir en `null`**, aunque el paciente tenga consultas. La fecha real está en `lastSession { id createdAt }`, que el CLI usa como respaldo.
+- **`getPatients` con `orderBy: "lastVisit"` solo devuelve pacientes con consultas**, y `totalCount` también los excluye. Sin `orderBy`, devuelve todos.
+- **`identifications[].country` es el enum `CountryName`** (`COLOMBIA`, `BRAZIL`, `COSTA_RICA`…), no el código ISO. Mandar `"CO"` da error 400.
+- **`phoneNumbers[].countryCode` ya incluye el `+`** (`"+57"`).
+- **`updateOrCreateScribePatient` es un upsert** por identificación: con el mismo documento devuelve el mismo `id` y no duplica.
+- **`softDeleteScribePatient(id: ID!): ScribePatient!`** existe (borrado lógico). El CLI no lo usa y no está probado.
+- **La introspección está desactivada** (`__schema` y `__type` dan 400). Para descubrir campos sirven los mensajes de error del servidor, que sugieren nombres parecidos ("Did you mean…").
+
 ### Forma de la nota (`medicalRecordMutable`)
 
 Es un objeto con una clave por sección (`chiefComplaint`, `historyOfPresentIllness`, `assessmentPlan`…). Cada valor puede ser:
