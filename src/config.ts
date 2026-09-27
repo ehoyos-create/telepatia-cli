@@ -39,4 +39,4 @@ export const credentialsPath = () => join(configDir(), "credentials.json");
 
 /** Identifies CLI-created sessions in Telepatia's metadata (the web app sends "web"). */
 export const APP_PLATFORM = "cli";
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
