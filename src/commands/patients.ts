@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { gql } from "../api/graphql.js";
+import { toCountryName } from "../countries.js";
 import { GET_PATIENT, GET_PATIENTS, PATIENT_TIMELINE, SEARCH_PATIENTS, UPSERT_PATIENT } from "../api/queries.js";
 import { CliError } from "../errors.js";
 import { fmtDate, info, printJson, table, c } from "../ui.js";
@@ -10,6 +11,17 @@ const idOf = (p: Patient) => p.identifications?.map((i: any) => `${i.idType ?? "
 
 /** `lastConsultation` often comes back null even when the patient has sessions; fall back to `lastSession`. */
 export const lastVisitOf = (p: Patient): string | undefined => p.lastConsultation ?? p.lastSession?.createdAt ?? undefined;
+
+/**
+ * Maps --sort to the API's ordering. With no sort the server's default order is used, like the web
+ * app: ordering by lastVisit silently drops patients who have no consultations yet.
+ */
+function sortFilter(sort?: string): Record<string, string> {
+  if (!sort) return {};
+  if (sort === "name" || sort === "fullName") return { orderBy: "fullName", orderDirection: "asc" };
+  if (sort === "recent" || sort === "lastVisit") return { orderBy: "lastVisit", orderDirection: "desc" };
+  throw new CliError(`--sort debe ser "name" o "recent" (recibido: "${sort}")`);
+}
 
 function printPatients(list: Patient[]) {
   table(
@@ -31,7 +43,7 @@ export function registerPatients(program: Command) {
     .description("Lista tus pacientes")
     .option("-n, --limit <n>", "cuántos", "25")
     .option("--offset <n>", "saltar N", "0")
-    .option("--sort <campo>", "fullName | lastVisit", "lastVisit")
+    .option("--sort <orden>", "name (alfabético) | recent (última consulta; solo incluye pacientes con consultas)")
     .option("--json", "salida JSON")
     .action(async (o) => {
       const { getPatients } = await gql<{ getPatients: { patients: Patient[]; totalCount: number } }>(GET_PATIENTS, {
@@ -39,8 +51,7 @@ export function registerPatients(program: Command) {
           limit: Number(o.limit),
           offset: Number(o.offset),
           includeAnonymousPatients: false,
-          orderBy: o.sort,
-          orderDirection: o.sort === "fullName" ? "asc" : "desc",
+          ...sortFilter(o.sort),
         },
       });
       if (o.json) return printJson(getPatients);
@@ -112,10 +123,12 @@ export function registerPatients(program: Command) {
     .argument("<nombre>", "nombre completo")
     .option("--id-type <tipo>", "tipo de documento (p.ej. CC, CPF, DNI)")
     .option("--id-value <número>", "número de documento")
-    .option("--country <código>", "país del documento (p.ej. CO, BR)")
+    .option("--country <país>", "país del documento: código (CO, BR, MX…) o nombre (COLOMBIA)")
     .option("--json", "salida JSON")
     .action(async (name: string, o) => {
-      const identifications = o.idValue ? [{ idType: o.idType ?? null, idValue: o.idValue, country: o.country ?? null }] : [];
+      const identifications = o.idValue
+        ? [{ idType: o.idType ?? null, idValue: o.idValue, country: o.country ? toCountryName(o.country) : null }]
+        : [];
       const { updateOrCreateScribePatient: p } = await gql<{ updateOrCreateScribePatient: Patient }>(UPSERT_PATIENT, {
         input: { fullName: name, identifications },
       });

@@ -71,3 +71,14 @@ test("real server shape: titles from server, empty sections stay empty", () => {
   assert.equal(s[3].text, "**Análisis:** Cefalea\n\n**Plan:**\n- Reposo\n- Control");
   assert.ok(!s.some((x) => x.text.includes("```")));
 });
+
+import { toCountryName } from "../src/countries.js";
+
+test("country: ISO code, enum value and plain name map to the CountryName enum", () => {
+  assert.equal(toCountryName("CO"), "COLOMBIA");
+  assert.equal(toCountryName("br"), "BRAZIL");
+  assert.equal(toCountryName("COLOMBIA"), "COLOMBIA");
+  assert.equal(toCountryName("costa rica"), "COSTA_RICA");
+  assert.equal(toCountryName("México"), "MEXICO");
+  assert.throws(() => toCountryName("Narnia"), /País desconocido/);
+});
