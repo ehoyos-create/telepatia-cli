@@ -1,6 +1,6 @@
 {
   "name": "telepatia-cli",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "CLI no oficial y de código abierto para Telepatia Scribe: consultas, notas, transcripciones, pacientes y plantillas desde la terminal.",
   "license": "MIT",
   "type": "module",
