@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
+## [0.2.1] — 2026-09-27
+
+### Cambiado
+
+- Dependencias actualizadas: `@clack/prompts` 1.x (menú interactivo), `commander` 14, TypeScript 7 y `@types/node` 20. `commander` 15 no se usa porque exige Node 22.
+- Requisito mínimo: **Node.js 20.12** (lo exige `@clack/prompts` 1.x).
+- Dependabot agrupa las actualizaciones de npm e ignora las versiones que romperían la compatibilidad con Node 20.
+
 ## [0.2.0] — 2026-09-27
 
 ### Agregado

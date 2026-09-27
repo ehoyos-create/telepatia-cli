@@ -36,9 +36,9 @@ import { renderMarkdown, statusBadge, statusLabel } from "./render.js";
 class Back extends Error {}
 
 /** Unwraps a clack result; a cancelled prompt navigates back. */
-function ok<T>(v: T | symbol): T {
+function ok<T>(v: T): Exclude<T, symbol> {
   if (p.isCancel(v)) throw new Back();
-  return v as T;
+  return v as Exclude<T, symbol>;
 }
 
 const BACK = "__back__";
@@ -60,7 +60,7 @@ async function withSpinner<T>(label: string, fn: (update: (m: string) => void) =
     s.stop(c.green("✓ ") + label.replace(/…$/, ""));
     return r;
   } catch (err) {
-    s.stop(c.red("✗ ") + errorMessage(err), 1);
+    s.error(c.red("✗ ") + errorMessage(err));
     return undefined;
   }
 }
@@ -74,7 +74,7 @@ async function finishLogin(result: LoginResult): Promise<void> {
         await p.text({
           message: `Código de verificación${result.mfaChallenge.emailHint ? ` (enviado a ${result.mfaChallenge.emailHint})` : ""}`,
           placeholder: "123456",
-          validate: (v) => (/^\d{6}$/.test(v) ? undefined : "Son 6 dígitos"),
+          validate: (v = "") => (/^\d{6}$/.test(v) ? undefined : "Son 6 dígitos"),
         }),
       );
       result = await authcentral.verify2fa(result.mfaChallenge.challengeToken, code);
@@ -135,12 +135,12 @@ async function loginScreen(): Promise<boolean> {
         if (r.state === "expired") break;
         if (r.state === "slow_down") interval = Math.min(interval * 2, 20_000);
       }
-      s.stop(c.red("El código expiró"), 1);
+      s.error(c.red("El código expiró"));
       return loginScreen();
     }
 
     const email = ok(
-      await p.text({ message: "Email", placeholder: "tu@correo.com", validate: (v) => (/\S+@\S+/.test(v) ? undefined : "Email inválido") }),
+      await p.text({ message: "Email", placeholder: "tu@correo.com", validate: (v = "") => (/\S+@\S+/.test(v) ? undefined : "Email inválido") }),
     );
 
     if (method === "otp") {
@@ -375,7 +375,7 @@ async function pickPatient(): Promise<{ id: string; name: string } | undefined> 
   );
   if (how === "none") return undefined;
   if (how === "new") {
-    const name = ok(await p.text({ message: "Nombre completo", validate: (v) => (v.trim() ? undefined : "Requerido") }));
+    const name = ok(await p.text({ message: "Nombre completo", validate: (v = "") => (v.trim() ? undefined : "Requerido") }));
     const idValue = ok(await p.text({ message: "Número de documento", placeholder: "opcional", defaultValue: "" }));
     const idType = idValue ? ok(await p.text({ message: "Tipo de documento", placeholder: "CC, CPF, DNI…", defaultValue: "" })) : "";
     const r = await gql<{ updateOrCreateScribePatient: { id: string; fullName: string } }>(UPSERT_PATIENT, {
@@ -389,7 +389,7 @@ async function pickPatient(): Promise<{ id: string; name: string } | undefined> 
       await p.text({
         message: "Buscar paciente",
         placeholder: "nombre o documento",
-        validate: (v) => (v.trim() ? undefined : "Escribe algo"),
+        validate: (v = "") => (v.trim() ? undefined : "Escribe algo"),
       }),
     );
     const r = await gql<{ searchScribePatients: any[] }>(SEARCH_PATIENTS, { query: q.trim(), limit: 15, offset: 0 });
@@ -447,7 +447,7 @@ async function newConsultation(): Promise<void> {
         await p.text({
           message: "Ruta del audio",
           placeholder: "arrastra el archivo aquí",
-          validate: (v) => (existsSync(cleanPath(v)) ? undefined : "No encuentro ese archivo"),
+          validate: (v = "") => (existsSync(cleanPath(v)) ? undefined : "No encuentro ese archivo"),
         }),
       ),
     );

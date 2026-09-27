@@ -1,6 +1,6 @@
 # telepatia-cli
 
-[![CI](https://github.com/ehoyos-create/telepatia-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/ehoyos-create/telepatia-cli/actions/workflows/ci.yml) [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-076f42.svg)](LICENSE) ![Node.js 20+](https://img.shields.io/badge/node-%3E%3D20-076f42.svg)
+[![CI](https://github.com/ehoyos-create/telepatia-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/ehoyos-create/telepatia-cli/actions/workflows/ci.yml) [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-076f42.svg)](LICENSE) ![Node.js 20.12+](https://img.shields.io/badge/node-%3E%3D20.12-076f42.svg)
 
 CLI **no oficial** y de código abierto para [Telepatia Scribe](https://scribe.telepatia.ai), el escriba médico con IA.
 
@@ -25,7 +25,7 @@ Ejecuta `telepatia` sin argumentos y se abre un **menú interactivo**, con el lo
           ████    ████                ██    ███████ ███████ ███████ ██      ██   ██    ██    ██ ██   ██
           ████    ████
           ████    ████             Scribe · tu consulta, desde la terminal
-          ████    ████             v0.2.0 · proyecto comunitario, no oficial
+          ████    ████             v0.2.1 · proyecto comunitario, no oficial
           ████    ████
            ▀▀▀    ▀▀▀              ● medico@ejemplo.com · Clínica Ejemplo
 
@@ -63,7 +63,7 @@ telepatia upload consulta.m4a --template "Medicina general"
 
 ## Instalación
 
-Requiere **Node.js 20 o superior**. **ffmpeg** es opcional: se usa para convertir audios y para grabar.
+Requiere **Node.js 20.12 o superior**. **ffmpeg** es opcional: se usa para convertir audios y para grabar.
 
 ```sh
 git clone https://github.com/ehoyos-create/telepatia-cli.git

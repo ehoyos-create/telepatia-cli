@@ -1,6 +1,6 @@
 {
   "name": "telepatia-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI no oficial y de código abierto para Telepatia Scribe: consultas, notas, transcripciones, pacientes y plantillas desde la terminal.",
   "license": "MIT",
   "type": "module",
@@ -15,7 +15,7 @@
     "docs"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
@@ -32,15 +32,15 @@
     "transcription"
   ],
   "dependencies": {
-    "@clack/prompts": "^0.9.1",
-    "commander": "^12.1.0",
+    "@clack/prompts": "^1.8.1",
+    "commander": "^14.0.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^20.19.43",
     "@types/ws": "^8.5.12",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^7.0.2"
   },
   "repository": {
     "type": "git",
