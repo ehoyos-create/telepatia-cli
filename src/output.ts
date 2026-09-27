@@ -1,6 +1,6 @@
 /**
- * Output mode. The CLI is agent-first: when it is driven by an AI agent or a script
- * (stdout is not a terminal, or CLAUDECODE / TELEPATIA_OUTPUT=json is set) data commands
+ * Output mode. The CLI is agent-first: when it is driven by an AI agent (CLAUDECODE,
+ * TELEPATIA_AGENT=1, TELEPATIA_OUTPUT=json, or no terminal on stdin nor stdout) data commands
  * print compact JSON with empty fields dropped, and errors are one JSON line on stderr.
  * Humans at a terminal get tables and colors. `--json` / `--human` force either mode.
  *
@@ -21,8 +21,14 @@ const envMode = (process.env.TELEPATIA_OUTPUT ?? "").toLowerCase();
 const forceHuman = has("--human") || envMode === "human";
 const explicitJson = !forceHuman && (has("--json") || envMode === "json");
 
-/** Driven by an agent or a pipe rather than a person at a terminal. */
-export const agentMode = !forceHuman && (explicitJson || Boolean(process.env.CLAUDECODE) || !process.stdout.isTTY);
+/**
+ * Driven by an agent rather than a person. Claude Code sets CLAUDECODE; other agents and
+ * CI run with neither stdin nor stdout attached to a terminal. A person's shell script
+ * (`telepatia upload a.m4a > nota.md`) keeps a terminal on stdin, so it keeps human behavior.
+ */
+export const agentMode =
+  !forceHuman &&
+  (explicitJson || Boolean(process.env.CLAUDECODE) || process.env.TELEPATIA_AGENT === "1" || (!process.stdout.isTTY && !process.stdin.isTTY));
 
 export const quiet = has("-q") || has("--quiet");
 

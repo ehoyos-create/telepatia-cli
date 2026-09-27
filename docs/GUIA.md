@@ -20,6 +20,7 @@ Este documento explica todo lo que hace el CLI: cómo instalarlo, cómo iniciar 
    - [Pacientes](#54-pacientes)
    - [Plantillas](#55-plantillas)
    - [Acceso directo a la API](#56-acceso-directo-a-la-api)
+   - [Agentes de IA: MCP, skill y schema](#57-agentes-de-ia-mcp-skill-y-schema)
 6. [Flujos de trabajo y recetas](#6-flujos-de-trabajo-y-recetas)
 7. [Salida, scripting y códigos de salida](#7-salida-scripting-y-códigos-de-salida)
 8. [Variables de entorno](#8-variables-de-entorno)
@@ -240,7 +241,21 @@ TELEPATIA_TOKEN=<access token> telepatia c list
 
 Con `TELEPATIA_TOKEN` el CLI **no** refresca el token: cuando expira, tienes que conseguir otro.
 
-### 4.6 ¿Dónde se guarda la sesión?
+### 4.6 En dos pasos, para agentes de IA
+
+Sin terminal (por ejemplo, cuando Claude ejecuta el CLI) no hay dónde escribir un código, así que el login se parte en dos comandos. Cada paso imprime un JSON con `status` y `next`, el comando que sigue:
+
+```sh
+telepatia login --otp medico@ejemplo.com   # {"status":"code_required","channel":"email",…,"next":"telepatia login --code <código>"}
+telepatia login --code 123456              # {"status":"logged_in","email":"medico@ejemplo.com",…}
+
+telepatia login --device                   # {"status":"approval_required","userCode":"ABCD-1234",…}
+telepatia login --wait                     # espera la aprobación en la app (100 s por defecto; si sale con código 5, repítelo)
+```
+
+Si la cuenta tiene varias instituciones, el paso responde `"status":"account_required"` con la lista, y se continúa con `telepatia login --account <accountId>`. El 2FA después de la contraseña (`TELEPATIA_PASSWORD` o `--password-stdin`) también se completa con `--code`. El paso pendiente se guarda en `pending-login.json`, junto a las credenciales y con permisos 600.
+
+### 4.7 ¿Dónde se guarda la sesión?
 
 | Sistema | Archivo |
 |---|---|
@@ -256,7 +271,8 @@ El archivo se crea con permisos `600` (solo tu usuario puede leerlo). Puedes cam
 Convenciones:
 
 - `<obligatorio>` y `[opcional]`.
-- Casi todos los comandos aceptan `--json` para obtener la respuesta completa en JSON.
+- `--json` es una opción global: funciona con cualquier comando y devuelve la respuesta completa en JSON. En modo agente ya es el formato por defecto (ver [sección 7](#7-salida-scripting-y-códigos-de-salida)).
+- `--fields id,status,patient.fullName` deja en el JSON solo esos campos. `-q` silencia el progreso.
 - Abreviaturas: `consultations` → `c`, `patients` → `p`, `templates` → `t`.
 - Ayuda de cualquier comando: `telepatia <comando> --help`.
 
@@ -400,9 +416,9 @@ Los archivos se crean con permisos `600`.
 
 Lista los documentos que Telepatia generó para la consulta, por ejemplo una nota por cada plantilla o reportes, con su propósito, especialidad e idioma.
 
-#### `telepatia consultations wait <id> [--timeout <min>]`
+#### `telepatia consultations wait <id> [--timeout <duración>]`
 
-Espera, revisando cada 5 segundos, a que la consulta llegue a un estado final, y va mostrando los cambios de estado. El tiempo máximo por defecto es 30 minutos.
+Espera, revisando cada 5 segundos, a que la consulta llegue a un estado final, y va mostrando los cambios de estado. El tiempo máximo por defecto es 30 minutos. `--timeout` acepta `90s`, `5m` o `1h`; un número solo son minutos. Si se agota, sale con código 5 y la consulta sigue procesándose: vuelve a ejecutarlo.
 
 #### `telepatia consultations regenerate <id> [--template <id>]`
 
@@ -414,7 +430,7 @@ Pide al servidor que finalice una consulta que quedó atascada, por ejemplo en `
 
 #### `telepatia consultations delete <id> [-y]`
 
-Elimina la consulta: la marca como `deleted`, igual que la web. Te muestra el paciente y la fecha y pide confirmación. Con `-y, --yes` no pregunta.
+Elimina la consulta: la marca como `deleted`, igual que la web. Te muestra el paciente y la fecha y pide confirmación. Con `-y, --yes` no pregunta. Sin terminal, `--yes` es obligatorio (sale con código 7 si falta).
 
 ---
 
@@ -432,8 +448,8 @@ Crea una consulta nueva a partir de un archivo de audio, lo sube, espera a que T
 | `--patient <id>` | Asociar la consulta a un paciente existente |
 | `--telemedicine` | Marcarla como teleconsulta |
 | `--external-id <id>` | Id de la consulta en tu propio sistema o EMR, para cruzar datos |
-| `--no-wait` | No esperar: imprime el id de la consulta y termina |
-| `--timeout <min>` | Espera máxima (por defecto 30) |
+| `--wait` / `--no-wait` | Esperar la nota, o imprimir el id y terminar. Por defecto espera, salvo en modo agente |
+| `--timeout <duración>` | Espera máxima: `90s`, `5m`, `1h` (por defecto 30 minutos) |
 | `--json` | Imprimir la consulta final en JSON |
 
 **Formatos:**
@@ -469,7 +485,8 @@ Para terminar, presiona **Enter** o **Ctrl+C**. ffmpeg cierra el archivo correct
 | `--device <nombre>` | Micrófono. Por defecto el del sistema en macOS y Linux. **En Windows es obligatorio** |
 | `-o, --out <archivo>` | Guardar además el audio en ese archivo `.flac` |
 | `--no-upload` | Solo grabar, sin subir |
-| `--no-wait` | Subir sin esperar la nota |
+| `--duration <duración>` | Parar solo tras ese tiempo (`90s`, `10m`). Obligatorio sin terminal |
+| `--wait` / `--no-wait` | Esperar la nota o no, igual que en `upload` |
 
 Cómo ver los nombres de los micrófonos:
 
@@ -571,6 +588,40 @@ telepatia api rest POST ai-backend /v1/patient-education/generate \
 
 > Con `api` puedes llamar endpoints que **modifican datos**. Revisa bien lo que envías.
 
+### 5.7 Agentes de IA: MCP, skill y schema
+
+#### `telepatia mcp`
+
+Arranca un servidor [MCP](https://modelcontextprotocol.io) por stdio, para que Claude u otro cliente MCP use Telepatia Scribe con herramientas nativas. Usa la sesión del CLI, así que inicia sesión antes con `telepatia login`.
+
+```sh
+claude mcp add --scope user telepatia -- telepatia mcp    # Claude Code, en todos tus proyectos
+```
+
+En Claude Desktop, agrega en `claude_desktop_config.json`: `"telepatia": { "command": "telepatia", "args": ["mcp"] }`.
+
+| Herramienta | Qué hace |
+|---|---|
+| `whoami` | Cuenta activa |
+| `list_consultations` | Consultas (buscar, filtrar por estado, paginar, contar) |
+| `get_consultation` | Nota clínica en Markdown, opcionalmente con transcripción |
+| `get_transcript` | Transcripción |
+| `wait_consultation` | Espera a que termine el procesamiento (máx. 600 s por llamada) |
+| `create_consultation_from_audio` | Crea una consulta desde un archivo de audio local |
+| `regenerate_note` · `recover_consultation` | Regenerar la nota · destrabar una consulta |
+| `search_patients` · `list_patients` · `get_patient` · `patient_history` | Pacientes |
+| `list_templates` · `get_template` | Plantillas |
+
+Borrar consultas no está en el MCP, a propósito: se hace con el CLI (`consultations delete --yes`).
+
+#### `telepatia skill [show|install]`
+
+`show` imprime el `SKILL.md`, una guía compacta del CLI escrita para agentes. `install` la copia en `~/.claude/skills/telepatia/` (o en `./.claude/skills/telepatia/` con `--project`), y Claude Code la carga en la próxima sesión.
+
+#### `telepatia schema`
+
+Devuelve en JSON todos los comandos con sus argumentos, opciones y valores por defecto, además de los códigos de salida y las variables de entorno. Un agente lo lee una vez en lugar de recorrer `--help` comando por comando.
+
 ---
 
 ## 6. Flujos de trabajo y recetas
@@ -646,13 +697,32 @@ Por eso `telepatia c show <id> > nota.md` guarda solo la nota, y `| jq` funciona
 
 - `--json` devuelve los datos **tal como los entrega la API**, con todos los campos. Es la forma recomendada de integrar con otras herramientas.
 - Los colores se desactivan cuando la salida no es una terminal o cuando defines `NO_COLOR=1`.
-- Los comandos que preguntan algo (contraseña, elegir plantilla o institución, confirmar un borrado) necesitan una terminal interactiva. En scripts, pasa esos valores con opciones (`--template`, `--account`, `-y`) o variables de entorno.
+- Los comandos que preguntan algo (contraseña, elegir plantilla o institución, confirmar un borrado) necesitan una terminal interactiva. En scripts, pasa esos valores con opciones (`--template`, `--account`, `-y`) o variables de entorno. Si falta alguno, el comando sale con código 7 y dice qué opción pasar.
 
-| Código de salida | Significado |
-|---|---|
-| `0` | Éxito |
-| `1` | Error: sin sesión, error de la API, archivo inválido, tiempo agotado… |
-| `130` | Cancelado por el usuario (Ctrl+C en un prompt) |
+### Modo agente
+
+El CLI entra en modo agente cuando lo ejecuta Claude Code (variable `CLAUDECODE`), con `TELEPATIA_AGENT=1` o `TELEPATIA_OUTPUT=json`, o cuando no hay terminal ni en stdin ni en stdout (CI, otros agentes). Un script tuyo lanzado desde una terminal no entra en modo agente. En modo agente:
+
+- Los listados y registros salen en **JSON compacto de una línea, sin campos vacíos** (`null`, `""`, `[]`), para gastar menos tokens.
+- Las notas (`show`, `export`) siguen en **Markdown**, que un modelo lee mejor y ocupa mucho menos que el JSON crudo. `--json` fuerza el JSON.
+- Los comandos de acción imprimen `{"ok":true,…,"next":"<siguiente comando>"}`.
+- Los errores salen en stderr como una línea JSON: `{"error":{"code":"auth_required","message":"…","hint":"telepatia login"}}`.
+- Las fechas del Markdown van en UTC e ISO (`2026-09-27 07:19Z`).
+- `upload` y `record` devuelven el id sin esperar la nota.
+
+`--human` desactiva el modo agente y `--json` lo fuerza.
+
+| Código de salida | `code` | Significado |
+|---|---|---|
+| `0` | — | Éxito |
+| `1` | `error` | Error inesperado |
+| `2` | `usage` | Comando, argumento u opción inválidos |
+| `3` | `auth_required` | Sin sesión o sesión vencida: `telepatia login` |
+| `4` | `not_found` | La consulta, paciente o plantilla no existe |
+| `5` | `timeout` | Se agotó la espera; la operación sigue en curso, repite el comando |
+| `6` | `api_error` | La API respondió con un error |
+| `7` | `needs_input` | Falta un dato que no se puede preguntar sin terminal; el `hint` dice cómo pasarlo |
+| `130` | `cancelled` | Cancelado por el usuario (Ctrl+C en un prompt) |
 
 ---
 
@@ -664,6 +734,8 @@ Por eso `telepatia c show <id> > nota.md` guarda solo la nota, y `| jq` funciona
 | `TELEPATIA_API_KEY` | Login con API key institucional |
 | `TELEPATIA_TOKEN` | Usar este access token directamente, sin sesión guardada y sin refresco |
 | `TELEPATIA_CONFIG_DIR` | Carpeta donde se guardan las credenciales |
+| `TELEPATIA_OUTPUT` | `json` o `human`: fuerza el formato de salida |
+| `TELEPATIA_AGENT` | `1` activa el modo agente (para agentes distintos de Claude Code) |
 | `NO_COLOR` | Desactivar colores |
 | `TELEPATIA_WEB_URL` | URL de la web (por defecto `https://scribe.telepatia.ai`) |
 | `TELEPATIA_AUTH_URL` | Servicio de autenticación |
@@ -694,7 +766,7 @@ El CLI trabaja con **datos de salud**, así que su diseño es conservador:
 
 | Mensaje | Causa y solución |
 |---|---|
-| `No has iniciado sesión. Ejecuta: telepatia login` | No hay sesión guardada. Inicia sesión. |
+| `No has iniciado sesión.` | No hay sesión guardada. Inicia sesión. |
 | `Tu sesión expiró` | El refresh token venció (unos 7 días sin uso) o fue revocado. Vuelve a iniciar sesión. |
 | `Email o contraseña incorrectos.` | Revisa los datos. Si entras con Google en la web, usa `login --otp` o `--device`. |
 | `Tu email no está verificado.` | Confirma la cuenta desde el correo de Telepatia. |
@@ -704,9 +776,10 @@ El CLI trabaja con **datos de salud**, así que su diseño es conservador:
 | `Indica la plantilla con --template` | Tienes varias plantillas y no hay terminal interactiva. Mira las disponibles con `telepatia templates`. |
 | `Formato … no soportado` | Instala ffmpeg o convierte el audio a wav o flac. |
 | `El archivo pesa … el máximo es 100 MB` | Divide el audio o conviértelo a FLAC mono 16 kHz: `ffmpeg -i in.wav -ac 1 -ar 16000 out.flac`. |
-| `Tiempo de espera agotado` | La consulta sigue procesándose. Revisa luego con `c show <id>` o `c wait <id> --timeout 60`. Si no avanza, usa `c recover <id>`. |
+| `La consulta … sigue en proceso` (código 5) | La consulta sigue procesándose. Revisa luego con `c show <id>` o `c wait <id> --timeout 60`. Si no avanza, usa `c recover <id>`. |
 | `record` no graba nada o falla | Revisa el permiso de micrófono de tu terminal (macOS), el nombre del dispositivo (`--device`) y que ffmpeg funcione. |
 | `la petición tardó demasiado` | Problema de red. Reintenta. |
+| `Falta … y no hay una terminal interactiva` (código 7) | El comando necesita un dato que solo se puede preguntar en una terminal. Pásalo con la opción que indica el mensaje, o usa el login en dos pasos ([4.6](#46-en-dos-pasos-para-agentes-de-ia)). |
 
 ---
 

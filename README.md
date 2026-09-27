@@ -114,7 +114,7 @@ telepatia skill install                          # y/o: skill para que Claude us
 
 Para Claude Desktop u otro cliente MCP, agrega un servidor con el comando `telepatia` y el argumento `mcp`.
 
-Cuando no hay terminal (Claude Code, pipes, CI) el CLI cambia solo al **modo agente**:
+Cuando lo ejecuta un agente (Claude Code, o cualquier proceso sin terminal en stdin ni stdout, como CI) el CLI cambia solo al **modo agente**. Otros agentes pueden activarlo con `TELEPATIA_AGENT=1`. Tus scripts lanzados desde una terminal se comportan como siempre.
 
 - **Salida:** los datos salen en JSON compacto de una línea y sin campos vacíos, y `--fields id,status,patient.fullName` deja solo lo necesario. Las notas siguen en Markdown, que es lo que un modelo lee mejor. Con `--human` vuelves a las tablas.
 - **Errores:** cada error es una línea JSON en stderr, `{"error":{"code","message","hint"}}`, y el `hint` es el comando que lo arregla. Los códigos de salida son estables: `2` uso, `3` sin sesión, `4` no encontrado, `5` timeout (repite el comando), `6` API, `7` falta input.
