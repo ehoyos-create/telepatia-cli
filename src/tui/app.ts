@@ -524,7 +524,7 @@ async function patientDetail(id: string): Promise<void> {
   const { pt, sessions } = data;
   const lines = [
     `${c.muted("Documento")}   ${pt.identifications?.map((i: any) => `${i.idType ?? ""} ${i.idValue ?? ""}`.trim()).join(", ") || "—"}`,
-    `${c.muted("Teléfono")}    ${pt.phoneNumbers?.map((x: any) => `+${x.countryCode} ${x.phoneNumber}`).join(", ") || "—"}`,
+    `${c.muted("Teléfono")}    ${pt.phoneNumbers?.map((x: any) => `+${String(x.countryCode).replace(/^\+/, "")} ${x.phoneNumber}`).join(", ") || "—"}`,
     `${c.muted("Email")}       ${pt.emails?.map((x: any) => x.email).join(", ") || "—"}`,
     `${c.muted("Consultas")}   ${sessions.length}`,
   ];
