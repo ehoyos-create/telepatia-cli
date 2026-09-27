@@ -22,6 +22,11 @@ La estructura del código está explicada en [docs/GUIA.md](docs/GUIA.md#estruct
 4. **Sin telemetría ni servicios de terceros.** El CLI solo debe hablar con los servidores de Telepatia.
 5. **Mensajes al usuario en español**; código y comentarios en inglés.
 6. Los mensajes de progreso van a **stderr**. En **stdout** va solo el resultado, para que se pueda usar con pipes.
+7. **Pensado para agentes.** Cada comando debe funcionar igual de bien si lo ejecuta Claude:
+   - imprime datos con `printJson` cuando `wantJson()` es verdadero, y reporta las acciones con `done({...}, mensaje)`, incluyendo `next` si hay un paso siguiente;
+   - lanza `CliError(mensaje, EXIT.X, hint)` con el código de salida adecuado y un `hint` que sea un comando ejecutable;
+   - nunca bloquees esperando input sin terminal: sal con `EXIT.NEEDS_INPUT` y di qué opción pasar, o parte el flujo en pasos (como `login --otp` → `login --code`);
+   - si agregas un comando que un agente usaría, agrégalo también como herramienta en `src/mcp.ts` y en `skills/telepatia/SKILL.md`. `telepatia schema` se genera solo.
 
 ## Si Telepatia cambió su API
 

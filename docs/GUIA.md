@@ -49,6 +49,7 @@ Este documento explica todo lo que hace el CLI: cómo instalarlo, cómo iniciar 
 | Ver tus plantillas y qué secciones generan | `telepatia templates …` |
 | Regenerar una nota o destrabar una consulta atascada | `telepatia c regenerate` / `c recover` |
 | Automatizar todo lo anterior en scripts | `--json`, variables de entorno |
+| Pedírselo a Claude u otro agente de IA en lenguaje natural | `telepatia mcp`, `telepatia skill install` ([5.7](#57-agentes-de-ia-mcp-skill-y-schema)) |
 | Llamar funciones de Telepatia que el CLI aún no envuelve | `telepatia api graphql` / `api rest` |
 
 **Para qué no sirve**: no reemplaza la aplicación web para editar notas, firmar órdenes médicas, enviar documentos a pacientes ni configurar plantillas. En [COBERTURA.md](COBERTURA.md) está el mapa completo de qué cubre y qué no.
@@ -755,6 +756,8 @@ El CLI trabaja con **datos de salud**, así que su diseño es conservador:
 - **Sin caché de datos clínicos**: el CLI no guarda consultas, notas ni pacientes en disco. Solo escribe archivos cuando tú lo pides (`export -o`, `record -o`), siempre con permisos `600`.
 - **Sin telemetría**: el CLI solo se comunica con los servidores de Telepatia (`private.telepatia.ai`). No envía métricas ni errores a terceros.
 - **Audio**: `record` graba en un directorio temporal del sistema. Si quieres conservar la grabación, usa `-o`. Si quieres borrarla, recuerda que el directorio temporal lo limpia el sistema operativo, no el CLI.
+- **Login en dos pasos**: el paso pendiente (`pending-login.json`) se guarda junto a las credenciales, con permisos `600`, y se borra al completar el login o con `logout`.
+- **Agentes de IA**: el servidor MCP corre en tu computador y usa tu sesión, sin intermediarios. Pero cuando usas el CLI desde Claude u otro agente de IA, lo que el agente lee (notas, transcripciones, nombres) entra en la conversación y lo procesa el proveedor del modelo. Hazlo solo si tu institución y la normativa de datos de salud de tu país lo permiten, y con cuentas que tengan los acuerdos adecuados (por ejemplo, un BAA o un DPA). El MCP no incluye borrar consultas, y la skill le pide al agente confirmar contigo antes de regenerar, borrar o crear pacientes.
 - **Equipos compartidos**: prefiere `login --device` o `--otp` y ejecuta `logout` al terminar.
 - **Al reportar errores**: nunca pegues salidas con nombres, documentos, transcripciones ni notas de pacientes en issues públicos.
 
@@ -779,6 +782,8 @@ El CLI trabaja con **datos de salud**, así que su diseño es conservador:
 | `La consulta … sigue en proceso` (código 5) | La consulta sigue procesándose. Revisa luego con `c show <id>` o `c wait <id> --timeout 60`. Si no avanza, usa `c recover <id>`. |
 | `record` no graba nada o falla | Revisa el permiso de micrófono de tu terminal (macOS), el nombre del dispositivo (`--device`) y que ffmpeg funcione. |
 | `la petición tardó demasiado` | Problema de red. Reintenta. |
+| `No hay un login esperando código.` | Pediste `login --code` sin un paso previo, o el código ya se usó. Empieza con `login --otp <email>`. |
+| Claude no ve las herramientas de Telepatia | Revisa `claude mcp get telepatia` (debe decir *Connected*), que `telepatia` esté en el `PATH` y que hayas abierto una sesión nueva después de registrarlo. |
 | `Falta … y no hay una terminal interactiva` (código 7) | El comando necesita un dato que solo se puede preguntar en una terminal. Pásalo con la opción que indica el mensaje, o usa el login en dos pasos ([4.6](#46-en-dos-pasos-para-agentes-de-ia)). |
 
 ---
@@ -814,6 +819,15 @@ Sí. Son consultas normales de tu cuenta. En sus metadatos quedan marcadas como 
 **¿Qué pasa si Telepatia cambia su API?**
 Algunos comandos pueden fallar hasta que se actualice el CLI. Abre un issue sin datos de pacientes.
 
+**¿Puedo usarlo con Claude?**
+Sí. Inicia sesión una vez en tu terminal (`telepatia login`) y conecta el CLI: `claude mcp add --scope user telepatia -- telepatia mcp` y, si quieres, `telepatia skill install`. En una sesión nueva de Claude Code puedes pedir cosas como "muéstrame mis últimas consultas" o "sube este audio con la plantilla SOAP". Ver la [sección 5.7](#57-agentes-de-ia-mcp-skill-y-schema).
+
+**¿Y con otros agentes (Cursor, Codex, etc.)?**
+Sí: cualquier cliente MCP puede ejecutar `telepatia mcp`. Si el agente usa el CLI por la terminal, define `TELEPATIA_AGENT=1` para activar el modo agente.
+
+**¿Qué ve el modelo de IA?**
+Solo lo que las herramientas le devuelven cuando las usa: listados, notas o transcripciones. Esos datos sí salen de tu computador hacia el proveedor del modelo. Revisa la [sección 9](#9-seguridad-y-privacidad).
+
 **¿Puedo usar mi propia IA con las transcripciones?**
 Sí: `c transcript` o `c export -f json` te dan los datos. Hazlo solo con proveedores y acuerdos que cumplan la normativa de datos de salud.
 
@@ -824,6 +838,9 @@ Sí: `c transcript` o `c export -f json` te dan los datos. Hazlo solo con provee
 Resumen; el detalle técnico está en [API.md](API.md).
 
 ```
+Claude / agente ──► telepatia mcp (stdio) ─┐
+Terminal / scripts ──► telepatia <comando> ─┤
+                                            ▼
 telepatia-cli ──► authcentral   (login, tokens, cuentas)
               ├─► datalayer     (GraphQL: consultas, notas, pacientes, plantillas)
               └─► ai-backend    (crear consulta, subir audio, regenerar, transcripción anonimizada)
@@ -840,7 +857,9 @@ telepatia-cli ──► authcentral   (login, tokens, cuentas)
 src/
 ├── index.ts              punto de entrada, manejo de errores
 ├── config.ts             URLs de servicios, rutas de configuración
-├── errors.ts             CliError / HttpError
+├── errors.ts             CliError / HttpError, códigos de salida estables (EXIT)
+├── output.ts             modo agente: detección, JSON compacto, --fields
+├── mcp.ts                servidor MCP (JSON-RPC por stdio) y sus herramientas
 ├── ui.ts                 tablas, prompts y confirmaciones (modo comando)
 ├── theme.ts              paleta de Telepatia → colores de terminal (truecolor/256/16)
 ├── tui/
@@ -860,7 +879,8 @@ src/
 │   ├── graphql.ts        cliente GraphQL
 │   ├── queries.ts        operaciones GraphQL
 │   └── aiBackend.ts      endpoints REST del backend de IA
-└── commands/             un archivo por grupo de comandos
+└── commands/             un archivo por grupo de comandos (agent.ts: schema, skill, mcp)
+skills/telepatia/         SKILL.md: guía para agentes (telepatia skill install)
 test/                     tests unitarios (node:test)
 ```
 

@@ -12,7 +12,7 @@ labels: bug
 telepatia ...
 ```
 
-**Qué pasó** (mensaje de error, sin datos sensibles)
+**Qué pasó** (mensaje de error y código de salida `echo $?`, sin datos sensibles)
 
 **Qué esperabas que pasara**
 
@@ -20,3 +20,4 @@ telepatia ...
 - `telepatia --version`:
 - `node -v`:
 - Sistema operativo:
+- ¿Desde una terminal, un script o un agente de IA (Claude Code, MCP, otro)?:
