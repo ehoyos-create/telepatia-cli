@@ -7,6 +7,13 @@ updates:
     groups:
       dependencies:
         patterns: ["*"]
+    ignore:
+      # The CLI supports Node.js 20 (see "engines"): commander 15+ needs Node 22,
+      # and @types/node should match the oldest supported runtime.
+      - dependency-name: commander
+        versions: [">=15"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps"
   - package-ecosystem: github-actions
