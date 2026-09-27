@@ -9,7 +9,7 @@ description: Usa Telepatia Scribe (escriba médico con IA) desde la terminal con
 
 ## Cómo se comporta con un agente
 
-Cuando lo ejecutas tú (stdout no es una terminal, o `CLAUDECODE` está definido) el CLI está en **modo agente**:
+Cuando lo ejecutas tú (`CLAUDECODE` está definido, o no hay terminal en stdin ni stdout) el CLI está en **modo agente**:
 
 - Listas y registros salen en **JSON compacto de una línea**, sin campos vacíos. `--fields a,b.c` recorta aún más.
 - Las notas (`consultations show`, `export`) salen en **Markdown**, que es lo que mejor lees. `--json` fuerza JSON crudo (mucho más largo).

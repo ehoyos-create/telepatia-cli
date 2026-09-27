@@ -58,12 +58,13 @@ export function registerAgent(program: Command) {
         version: VERSION,
         globalOptions: program.options.filter((o) => !o.hidden).map((o) => ({ flags: o.flags, description: o.description })),
         outputModes:
-          "Modo agente (stdout no es TTY, CLAUDECODE o TELEPATIA_OUTPUT=json): datos en JSON compacto sin campos vacíos; notas en Markdown; " +
+          "Modo agente (CLAUDECODE, TELEPATIA_AGENT=1, TELEPATIA_OUTPUT=json, o sin TTY en stdin ni stdout): datos en JSON compacto sin campos vacíos; notas en Markdown; " +
           "errores como {error:{code,message,hint}} en stderr. --human fuerza tablas; --json fuerza JSON también en notas.",
         exitCodes: EXIT_CODES,
         env: {
           TELEPATIA_TOKEN: "access token; salta el login",
           TELEPATIA_OUTPUT: "json | human",
+          TELEPATIA_AGENT: "1 activa el modo agente (para agentes distintos de Claude Code)",
           TELEPATIA_EMAIL: "email para login",
           TELEPATIA_API_KEY: "API key institucional",
           TELEPATIA_CONFIG_DIR: "carpeta de credenciales",

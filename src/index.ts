@@ -18,7 +18,7 @@ const program = new Command()
   .name("telepatia")
   .description("CLI no oficial de Telepatia Scribe — consultas, notas, transcripciones y pacientes desde la terminal.")
   .version(VERSION)
-  .option("--json", "salida JSON (por defecto cuando no hay terminal: agentes, pipes)")
+  .option("--json", "salida JSON (por defecto en modo agente: Claude Code, CI)")
   .option("--human", "salida para personas (tablas y colores) aunque no haya terminal")
   .option("--fields <campos>", "con JSON: solo estos campos, p.ej. id,status,patient.fullName")
   .option("-q, --quiet", "sin mensajes de progreso en stderr")
@@ -27,7 +27,7 @@ const program = new Command()
   .addHelpText(
     "after",
     `
-Agentes y scripts (Claude Code, pipes): la salida es JSON compacto, las notas son Markdown,
+Modo agente (Claude Code, TELEPATIA_AGENT=1, o sin terminal en stdin ni stdout): la salida es JSON compacto, las notas son Markdown,
 los errores son JSON en stderr con "code" y "hint", y nada se queda esperando input.
   telepatia schema          todos los comandos en JSON
   telepatia skill install   skill para Claude Code
