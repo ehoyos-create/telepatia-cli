@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/ehoyos-create/telepatia-cli/security/advisories/new
+    about: No abras un issue público para problemas de seguridad.
+  - name: Soporte de Telepatia Scribe (la plataforma)
+    url: https://scribe.telepatia.ai
+    about: Este proyecto no es oficial; para problemas con tu cuenta o el servicio, contacta a Telepatia.
