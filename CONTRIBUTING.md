@@ -36,8 +36,17 @@ Las operaciones GraphQL están en `src/api/queries.ts` y los endpoints REST en `
 2. Compara la petición que hace la web con la que hace el CLI.
 3. Actualiza el código y [docs/API.md](docs/API.md).
 
+Para probar contra el servidor real usa tu propia sesión e imprime solo errores, conteos o la forma de los datos, **nunca datos de pacientes**. La introspección de GraphQL está desactivada. Para comprobar un tipo sin efectos (por ejemplo, sin crear un paciente), envía la mutación con otro campo inválido a propósito: el servidor la rechaza en la validación y reporta todos los errores de tipos.
+
 ## Pull requests
 
 - Una funcionalidad o arreglo por PR.
 - Agrega tests cuando cambies lógica pura (por ejemplo `src/note.ts`).
 - Actualiza la documentación (`docs/GUIA.md`, `docs/COBERTURA.md`) si cambias comandos u opciones.
+
+## Publicar una versión
+
+1. Anota los cambios en `CHANGELOG.md`, en la sección `[Sin publicar]`, y renómbrala a `[X.Y.Z] — fecha`.
+2. Cambia la versión en `package.json`, `package-lock.json`, `src/config.ts` (`VERSION`) y en la vista previa del banner de `README.md` y `docs/GUIA.md`.
+3. Haz commit y push a `main`, y espera a que el CI quede en verde.
+4. Crea el release con las notas de esa versión del CHANGELOG: `gh release create vX.Y.Z --title vX.Y.Z --notes-file notas.md`.

@@ -67,7 +67,15 @@ Comprobado contra el servidor en septiembre de 2026:
 - **`phoneNumbers[].countryCode` ya incluye el `+`** (`"+57"`).
 - **`updateOrCreateScribePatient` es un upsert** por identificación: con el mismo documento devuelve el mismo `id` y no duplica.
 - **`softDeleteScribePatient(id: ID!): ScribePatient!`** existe (borrado lógico). El CLI no lo usa y no está probado.
+- **`timelineByPatient` recibe `{patientDocumentId, limit, descending}`**, no `patientId`.
 - **La introspección está desactivada** (`__schema` y `__type` dan 400). Para descubrir campos sirven los mensajes de error del servidor, que sugieren nombres parecidos ("Did you mean…").
+
+### Otros detalles comprobados
+
+- **`scribeSession.transcript` suele venir en `null`.** La transcripción se obtiene con `GET /download-session-files/anonymized/{id}/transcript` (ai-backend), que la devuelve **anonimizada**. Es la única versión que muestra la web.
+- **Cada sección de la nota trae `{title, type, status, content}`.** El `title` ya viene traducido. Una sección vacía llega con `content: ""` o con sub-campos vacíos.
+- **Errores**: los de validación de GraphQL llegan con HTTP 400 y `{errors: [{message}]}`. Los de ejecución (por ejemplo "Scribe patient not found") llegan con HTTP 200 y `errors` en el cuerpo.
+- **Validar sin efectos**: como no hay introspección, para comprobar un tipo o un enum sin ejecutar una mutación (por ejemplo, sin crear un paciente) se envía con otro campo inválido a propósito. El servidor la rechaza en la validación y reporta todos los errores de tipos.
 
 ### Forma de la nota (`medicalRecordMutable`)
 

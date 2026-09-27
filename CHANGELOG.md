@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). E
 ### Documentación
 
 - Guía: receta para crear pacientes en lote desde un CSV, y la limitación de que no se pueden eliminar pacientes desde el CLI.
+- API: transcripción anonimizada, forma de las secciones de la nota, errores 400 vs. 200 y cómo validar tipos sin efectos.
+- Cobertura: sección de extras que el CLI tiene y la web no (exportar en lote, scripts, agentes, `schema`).
+- CONTRIBUTING: cómo publicar una versión y cómo probar contra el servidor sin exponer datos de pacientes.
 - API: detalles de los pacientes en la API (`lastConsultation` vacío, `lastVisit` que excluye pacientes, enum `CountryName`, upsert por identificación, `softDeleteScribePatient`, introspección desactivada).
 
 ## [0.2.1] — 2026-09-27

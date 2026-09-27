@@ -51,6 +51,16 @@ Estado: ✅ cubierto · 🟡 parcial o solo vía `telepatia api` · ❌ no cubie
 | Hospitalización (`/inpatients`), triage, integraciones EMR (Tasy, extensión de Chrome) | ❌ específicas de cada institución |
 | Agenda de citas | 🟡 `api graphql` (`appointments`) |
 
+## Extras del CLI (no existen en la web)
+
+| Función | CLI |
+|---|---|
+| Exportar notas en lote a Markdown o JSON | ✅ `consultations export` |
+| Automatizar con scripts: `--json`, variables de entorno y códigos de salida estables | ✅ |
+| Pedírselo a Claude u otro agente de IA: modo agente, servidor MCP y skill de Claude Code | ✅ `telepatia mcp`, `telepatia skill install` |
+| Descubrir todos los comandos de forma programática | ✅ `telepatia schema` |
+| Acceso directo a la API para lo que no tiene comando | ✅ `api graphql` / `api rest` |
+
 ## ¿Por qué `record` no transcribe en vivo?
 
 La web envía el audio por un WebSocket (`wss://…/ai-backend/v1/ws/audio/{sessionId}`) en paquetes Opus con prefijo de longitud, o en PCM16. Según los flags de la institución, a veces van envueltos en msgpack con marcas de tiempo, y el cierre usa un protocolo de confirmación (`stop_ack`). El formato no se declara: el servidor lo detecta. Replicarlo sin documentación oficial es frágil. Si falla a mitad de una consulta real, perderías el audio.

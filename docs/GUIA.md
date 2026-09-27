@@ -881,6 +881,7 @@ src/
 ├── errors.ts             CliError / HttpError, códigos de salida estables (EXIT)
 ├── output.ts             modo agente: detección, JSON compacto, --fields
 ├── mcp.ts                servidor MCP (JSON-RPC por stdio) y sus herramientas
+├── countries.ts          código de país (CO) → enum CountryName de la API
 ├── ui.ts                 tablas, prompts y confirmaciones (modo comando)
 ├── theme.ts              paleta de Telepatia → colores de terminal (truecolor/256/16)
 ├── tui/
