@@ -21,6 +21,7 @@ import { authcentral, type LoginResult } from "../auth/authcentral.js";
 import { decodeJwt } from "../auth/jwt.js";
 import { currentClaims, getAccessToken, persistTokens } from "../auth/session.js";
 import { clearSession, loadSession, type AccountSummary } from "../auth/store.js";
+import { lastVisitOf } from "../commands/patients.js";
 import { recordToFile } from "../commands/record.js";
 import { submitAudio } from "../commands/upload.js";
 import { endpoints } from "../config.js";
@@ -497,7 +498,7 @@ async function patientsScreen(): Promise<void> {
           ...list.map((x) => ({
             value: x.id as string,
             label: x.fullName ?? x.patientName ?? "—",
-            hint: x.lastConsultation ? `última: ${fmtDate(x.lastConsultation)}` : undefined,
+            hint: lastVisitOf(x) ? `última: ${fmtDate(lastVisitOf(x))}` : undefined,
           })),
           { value: "__again", label: c.brand("⌕ Buscar otra vez") },
           { value: BACK, label: "← Menú principal" },

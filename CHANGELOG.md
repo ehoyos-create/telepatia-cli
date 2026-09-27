@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Corregido
+
+- La "última consulta" de un paciente ahora usa `lastSession` cuando el servidor devuelve `lastConsultation` vacío.
+- Los teléfonos ya no muestran el prefijo `+` duplicado.
+
 ## [0.1.0] — 2026-09-27
 
 Primera versión pública.
