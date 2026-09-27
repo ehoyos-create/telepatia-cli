@@ -3,7 +3,7 @@ import type { Command } from "commander";
 import { gql } from "../api/graphql.js";
 import { authedFetch } from "../api/http.js";
 import { serviceUrl, type Service } from "../config.js";
-import { CliError } from "../errors.js";
+import { CliError, EXIT } from "../errors.js";
 import { printJson } from "../ui.js";
 
 const readArg = async (v: string) => (v.startsWith("@") ? readFile(v.slice(1), "utf8") : v);
@@ -30,7 +30,7 @@ export function registerApi(program: Command) {
     .argument("<path>", "p.ej. /v1/intelligence/scales?language=es")
     .option("-d, --data <json>", "cuerpo JSON, o @archivo.json")
     .action(async (method: string, service: string, path: string, o) => {
-      if (!["ai-backend", "scribe-bff", "authcentral"].includes(service)) throw new CliError(`Servicio desconocido: ${service}`);
+      if (!["ai-backend", "scribe-bff", "authcentral"].includes(service)) throw new CliError(`Servicio desconocido: ${service}`, EXIT.USAGE);
       const body = o.data ? JSON.parse(await readArg(o.data)) : undefined;
       const res = await authedFetch(serviceUrl(service as Service) + path, { method: method.toUpperCase(), body });
       typeof res === "string" ? console.log(res) : printJson(res);

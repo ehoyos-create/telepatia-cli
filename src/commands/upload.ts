@@ -1,10 +1,12 @@
 import type { Command } from "commander";
+import { wantJson } from "../output.js";
 import { existsSync } from "node:fs";
 import { createSession, processAudio } from "../api/aiBackend.js";
 import { prepareAudio } from "../audio.js";
-import { CliError } from "../errors.js";
+import { CliError, EXIT } from "../errors.js";
 import { fetchSession, resolveTemplate, sessionToMarkdown, waitForSession } from "../sessions.js";
-import { c, info, printJson } from "../ui.js";
+import { agentMode } from "../output.js";
+import { c, info, parseMinutes, printJson } from "../ui.js";
 
 export interface SubmitAudioInput {
   file: string;
@@ -18,7 +20,7 @@ export interface SubmitAudioInput {
 /** Creates a consultation and uploads its audio. Returns the new session id (processing continues server-side). */
 export async function submitAudio(input: SubmitAudioInput): Promise<string> {
   const say = input.onProgress ?? (() => {});
-  if (!existsSync(input.file)) throw new CliError(`No existe el archivo ${input.file}`);
+  if (!existsSync(input.file)) throw new CliError(`No existe el archivo ${input.file}`, EXIT.NOT_FOUND);
   const audio = await prepareAudio(input.file);
   if (audio.converted) say("audio convertido a FLAC 16 kHz mono");
   say("creando consulta…");
@@ -55,17 +57,18 @@ export async function runUpload(file: string, o: UploadOptions): Promise<void> {
   });
   info(c.green(`✓ Consulta ${c.bold(sessionId)} creada (plantilla: ${template.name}).`));
 
-  if (o.wait === false) {
+  // Agents default to not waiting: processing takes minutes, longer than a tool call should block.
+  if (!(o.wait ?? !agentMode)) {
     info(`Consulta en proceso. Ver luego: telepatia consultations show ${sessionId}`);
-    if (o.json) printJson({ id: sessionId });
+    if (wantJson()) printJson({ ok: true, id: sessionId, status: "processing", next: `telepatia consultations wait ${sessionId} --timeout 100s` });
     else console.log(sessionId);
     return;
   }
   info("Procesando (transcripción + nota)…");
-  const status = await waitForSession(sessionId, Number(o.timeout ?? 30));
+  const status = await waitForSession(sessionId, parseMinutes(o.timeout, 30));
   if (!status.startsWith("completed")) info(c.yellow(`La consulta terminó con estado: ${status}`));
   const s = await fetchSession(sessionId);
-  if (o.json) return printJson(s);
+  if (wantJson("document")) return printJson(s);
   process.stdout.write(await sessionToMarkdown(s));
 }
 
@@ -78,9 +81,9 @@ export function registerUpload(program: Command) {
     .option("--patient <id>", "asociar a un paciente existente (ver: telepatia patients)")
     .option("--telemedicine", "marcar como teleconsulta")
     .option("--external-id <id>", "id de la consulta en tu sistema/EMR")
-    .option("--no-wait", "no esperar a que se genere la nota")
-    .option("--timeout <min>", "minutos máximos de espera", "30")
-    .option("--json", "imprimir la consulta final en JSON")
+    .option("--wait", "esperar la nota e imprimirla (por defecto en terminal)")
+    .option("--no-wait", "devolver el id sin esperar (por defecto para agentes/scripts)")
+    .option("--timeout <duración>", "espera máxima: 90s, 5m, 1h (número solo = minutos)", "30")
     .addHelpText(
       "after",
       `
