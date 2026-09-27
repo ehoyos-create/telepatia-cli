@@ -168,6 +168,10 @@ export const GET_PATIENTS = /* GraphQL */ `
         fullName
         patientName
         lastConsultation
+        lastSession {
+          id
+          createdAt
+        }
         identifications {
           idValue
           idType
@@ -185,6 +189,10 @@ export const SEARCH_PATIENTS = /* GraphQL */ `
       fullName
       patientName
       lastConsultation
+      lastSession {
+        id
+        createdAt
+      }
       identifications {
         idValue
         idType
@@ -201,6 +209,10 @@ export const GET_PATIENT = /* GraphQL */ `
       fullName
       patientName
       lastConsultation
+      lastSession {
+        id
+        createdAt
+      }
       identifications {
         idValue
         idType

@@ -8,13 +8,16 @@ type Patient = Record<string, any>;
 
 const idOf = (p: Patient) => p.identifications?.map((i: any) => `${i.idType ?? ""} ${i.idValue ?? ""}`.trim()).join(", ") ?? "";
 
+/** `lastConsultation` often comes back null even when the patient has sessions; fall back to `lastSession`. */
+export const lastVisitOf = (p: Patient): string | undefined => p.lastConsultation ?? p.lastSession?.createdAt ?? undefined;
+
 function printPatients(list: Patient[]) {
   table(
     list.map((p) => ({
       id: p.id,
       nombre: p.fullName ?? p.patientName ?? "—",
       identificación: idOf(p),
-      "última consulta": fmtDate(p.lastConsultation),
+      "última consulta": fmtDate(lastVisitOf(p)),
     })),
     ["id", "nombre", "identificación", "última consulta"],
   );
@@ -73,9 +76,9 @@ export function registerPatients(program: Command) {
       const rows: [string, string][] = [
         ["Nombre", p.fullName ?? p.patientName ?? "—"],
         ["Identificación", idOf(p) || "—"],
-        ["Teléfonos", p.phoneNumbers?.map((x: any) => `+${x.countryCode} ${x.phoneNumber}`).join(", ") || "—"],
+        ["Teléfonos", p.phoneNumbers?.map((x: any) => `+${String(x.countryCode).replace(/^\+/, "")} ${x.phoneNumber}`).join(", ") || "—"],
         ["Emails", p.emails?.map((x: any) => x.email).join(", ") || "—"],
-        ["Última consulta", fmtDate(p.lastConsultation) || "—"],
+        ["Última consulta", fmtDate(lastVisitOf(p)) || "—"],
         ["Creado", fmtDate(p.createdAt)],
       ];
       for (const [k, v] of rows) console.log(`${c.dim(k.padEnd(16))} ${v}`);
