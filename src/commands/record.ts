@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
 import { hasFfmpeg } from "../audio.js";
-import { CliError } from "../errors.js";
-import { c, info } from "../ui.js";
+import { CliError, EXIT } from "../errors.js";
+import { c, info, parseMinutes } from "../ui.js";
 import { runUpload } from "./upload.js";
 
 /** ffmpeg input args for the default microphone on each OS. */
@@ -29,12 +29,14 @@ function micInput(device?: string): string[] {
  * Returns the file path. Live streaming over the web app's audio WebSocket is intentionally
  * not used: its wire format is undocumented and flag-dependent (see docs/COBERTURA.md).
  */
-export async function recordToFile(opts: { device?: string; out?: string } = {}): Promise<string> {
+export async function recordToFile(opts: { device?: string; out?: string; seconds?: number } = {}): Promise<string> {
   if (!hasFfmpeg()) throw new CliError("Grabar necesita ffmpeg (brew install ffmpeg / apt install ffmpeg).");
+  if (!opts.seconds && !process.stdin.isTTY)
+    throw new CliError("Sin terminal no hay tecla para parar la grabación: indica cuánto grabar.", EXIT.NEEDS_INPUT, "telepatia record --duration 10m");
   const file = opts.out ?? join(await mkdtemp(join(tmpdir(), "telepatia-")), "consulta.flac");
   const ff = spawn(
     "ffmpeg",
-    ["-hide_banner", "-loglevel", "error", "-y", ...micInput(opts.device), "-ac", "1", "-ar", "16000", "-c:a", "flac", file],
+    ["-hide_banner", "-loglevel", "error", "-y", ...micInput(opts.device), ...(opts.seconds ? ["-t", String(opts.seconds)] : []), "-ac", "1", "-ar", "16000", "-c:a", "flac", file],
     { stdio: ["pipe", "ignore", "pipe"] },
   );
   let stderr = "";
@@ -80,10 +82,13 @@ export function registerRecord(program: Command) {
     .option("--device <nombre>", "micrófono (por defecto el del sistema)")
     .option("-o, --out <archivo>", "guardar también el audio en este archivo .flac")
     .option("--no-upload", "solo grabar, no subir")
-    .option("--no-wait", "no esperar a la nota")
+    .option("--duration <duración>", "parar solo tras este tiempo: 90s, 10m (necesario sin terminal)")
+    .option("--wait", "esperar la nota e imprimirla (por defecto en terminal)")
+    .option("--no-wait", "devolver el id sin esperar (por defecto para agentes/scripts)")
     .action(async (o) => {
       info(c.yellow("Recuerda: necesitas el consentimiento del paciente para grabar."));
-      const file = await recordToFile({ device: o.device, out: o.out });
+      const seconds = o.duration ? Math.round(parseMinutes(o.duration, 0) * 60) : undefined;
+      const file = await recordToFile({ device: o.device, out: o.out, seconds });
       info(c.green(`✓ Audio guardado en ${file}`));
       if (!o.upload) return;
       await runUpload(file, { template: o.template, patient: o.patient, wait: o.wait });

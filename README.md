@@ -98,8 +98,28 @@ telepatia templates
 | **Pacientes** | `patients list/search/show/history/create` |
 | **Plantillas** | `templates list/show` (secciones e instrucciones de la IA) |
 | **Avanzado** | `api graphql` / `api rest`: llamadas directas a la API para lo que el CLI aún no envuelve |
+| **Agentes / IA** | `mcp` (servidor MCP) · `skill install` (skill de Claude Code) · `schema` (todos los comandos en JSON) |
 
 Todos los comandos aceptan `--json`. El progreso se escribe en stderr, así que stdout queda limpio para usar con `| jq` o `> archivo`. Los detalles están en la **[guía completa](docs/GUIA.md)**.
+
+## Con Claude y otros agentes
+
+El CLI está pensado para que lo use un agente de IA tanto como una persona. Hay dos formas de conectarlo a Claude:
+
+```sh
+telepatia login                                  # una vez, en tu terminal
+claude mcp add telepatia -- telepatia mcp        # herramientas nativas (MCP) en Claude Code
+telepatia skill install                          # y/o: skill para que Claude use el CLI por Bash
+```
+
+Para Claude Desktop u otro cliente MCP, agrega un servidor con el comando `telepatia` y el argumento `mcp`.
+
+Cuando no hay terminal (Claude Code, pipes, CI) el CLI cambia solo al **modo agente**:
+
+- **Salida:** los datos salen en JSON compacto de una línea y sin campos vacíos, y `--fields id,status,patient.fullName` deja solo lo necesario. Las notas siguen en Markdown, que es lo que un modelo lee mejor. Con `--human` vuelves a las tablas.
+- **Errores:** cada error es una línea JSON en stderr, `{"error":{"code","message","hint"}}`, y el `hint` es el comando que lo arregla. Los códigos de salida son estables: `2` uso, `3` sin sesión, `4` no encontrado, `5` timeout (repite el comando), `6` API, `7` falta input.
+- **Nada se queda esperando:** el login se hace en dos pasos (`login --otp <email>` → `login --code <código>`, o `login --device` → `login --wait`). `upload` devuelve el id sin esperar. `wait --timeout 100s` cabe en una llamada a una herramienta. Borrar exige `--yes`.
+- **Acciones:** los comandos que cambian algo responden `{"ok":true,...,"next":"<siguiente comando>"}`.
 
 ## Lo que no hace, a propósito
 

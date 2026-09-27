@@ -1,4 +1,4 @@
-import { CliError, HttpError } from "../errors.js";
+import { CliError, EXIT, HttpError } from "../errors.js";
 import { authcentral, type TokenResponse } from "./authcentral.js";
 import { decodeJwt, type TelepatiaClaims } from "./jwt.js";
 import { clearSession, loadSession, saveSession, type AccountSummary, type StoredSession } from "./store.js";
@@ -24,7 +24,7 @@ export function persistTokens(
 
 function requireSession(): StoredSession {
   const s = loadSession();
-  if (!s) throw new CliError("No has iniciado sesión. Ejecuta: telepatia login");
+  if (!s) throw new CliError("No has iniciado sesión.", EXIT.AUTH, "telepatia login");
   return s;
 }
 
@@ -39,7 +39,7 @@ export async function refreshSession(): Promise<StoredSession> {
     } catch (err) {
       if (err instanceof HttpError && (err.status === 401 || err.status === 403)) {
         clearSession();
-        throw new CliError("Tu sesión expiró. Ejecuta: telepatia login");
+        throw new CliError("Tu sesión expiró.", EXIT.AUTH, "telepatia login");
       }
       throw err;
     }

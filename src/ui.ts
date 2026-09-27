@@ -1,15 +1,25 @@
 import { createInterface } from "node:readline";
-import { CliError } from "./errors.js";
+import { CliError, EXIT } from "./errors.js";
+import { agentMode, formatJson, quiet, wantJson } from "./output.js";
 
 import { c } from "./theme.js";
 
 export { c };
 
 /** Status/progress messages go to stderr so stdout stays clean for piping. */
-export const info = (msg: string): void => void process.stderr.write(`${msg}\n`);
+export const info = (msg: string): void => void (quiet || process.stderr.write(`${msg}\n`));
 
 export function printJson(v: unknown): void {
-  process.stdout.write(JSON.stringify(v, null, 2) + "\n");
+  process.stdout.write(formatJson(v) + "\n");
+}
+
+/**
+ * Reports the outcome of an action command: a JSON object on stdout for agents/scripts,
+ * a friendly line on stderr for humans. `next` tells an agent what to run afterwards.
+ */
+export function done(data: Record<string, unknown>, human: string): void {
+  if (wantJson()) printJson({ ok: true, ...data });
+  else info(human);
 }
 
 export function table(rows: Record<string, unknown>[], columns: string[]): void {
@@ -28,15 +38,23 @@ export function table(rows: Record<string, unknown>[], columns: string[]): void 
 export function fmtDate(iso: unknown): string {
   if (typeof iso !== "string" || !iso) return "";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
+  if (Number.isNaN(d.getTime())) return iso;
+  // Agents get an unambiguous, locale-free timestamp; people get their locale's short format.
+  if (agentMode) return d.toISOString().slice(0, 16).replace("T", " ") + "Z";
+  return d.toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
 }
 
-function requireTty() {
-  if (!process.stdin.isTTY) throw new CliError("Se necesita una terminal interactiva (o pasa los valores con flags/variables de entorno).");
+function requireTty(what: string) {
+  if (!process.stdin.isTTY)
+    throw new CliError(
+      `Falta ${what} y no hay una terminal interactiva para pedirlo. Pásalo con flags o variables de entorno.`,
+      EXIT.NEEDS_INPUT,
+      "telepatia <comando> --help",
+    );
 }
 
 export async function prompt(question: string): Promise<string> {
-  requireTty();
+  requireTty(`"${question.replace(/\s*(\[[^\]]*\])?[\s:?]*$/, "")}"`);
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try {
     return await new Promise<string>((resolve) => rl.question(question, (a) => resolve(a.trim())));
@@ -47,7 +65,7 @@ export async function prompt(question: string): Promise<string> {
 
 /** Reads a line without echoing it (passwords). */
 export async function promptHidden(question: string): Promise<string> {
-  requireTty();
+  requireTty("la contraseña (usa TELEPATIA_PASSWORD o --password-stdin)");
   process.stderr.write(question);
   const stdin = process.stdin;
   stdin.setRawMode(true);
@@ -64,7 +82,7 @@ export async function promptHidden(question: string): Promise<string> {
         }
         if (k === "\u0003") {
           done();
-          reject(new CliError("Cancelado", 130));
+          reject(new CliError("Cancelado", EXIT.CANCELLED));
           return;
         }
         if (k === "\u007f" || k === "\b") value = value.slice(0, -1);
@@ -92,6 +110,16 @@ export async function choose<T>(question: string, items: T[], label: (t: T) => s
     const n = Number(await prompt(`${question} [1-${items.length}]: `));
     if (Number.isInteger(n) && n >= 1 && n <= items.length) return items[n - 1];
   }
+}
+
+/** Parses "90s", "5m", "1h" or a bare number of minutes into minutes. */
+export function parseMinutes(v: string | number | undefined, fallback: number): number {
+  if (v === undefined || v === "") return fallback;
+  const m = /^(\d+(?:\.\d+)?)\s*(s|m|min|h)?$/i.exec(String(v).trim());
+  if (!m) throw new CliError(`Duración inválida: ${v} (usa p.ej. 90s, 5m, 1h)`, EXIT.USAGE);
+  const n = Number(m[1]);
+  const unit = (m[2] ?? "m").toLowerCase();
+  return unit === "s" ? n / 60 : unit === "h" ? n * 60 : n;
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

@@ -1,12 +1,21 @@
 import { writeFile } from "node:fs/promises";
 import type { Command } from "commander";
+import { wantJson } from "../output.js";
 import { getAnonymizedTranscript, regenerateNote, resolveSession } from "../api/aiBackend.js";
 import { gql } from "../api/graphql.js";
-import { COUNT_SESSIONS, DELETE_SESSION, LIST_SESSIONS, MEDICAL_RECORD_DOCUMENTS, SESSION_STATUSES } from "../api/queries.js";
-import { currentClaims } from "../auth/session.js";
-import { CliError } from "../errors.js";
-import { fetchSession, getTranscript, sessionToMarkdown, waitForSession, type Session } from "../sessions.js";
-import { c, confirm, fmtDate, info, printJson, table } from "../ui.js";
+import { DELETE_SESSION, MEDICAL_RECORD_DOCUMENTS, SESSION_STATUSES } from "../api/queries.js";
+import { CliError, EXIT } from "../errors.js";
+import {
+  countConsultations,
+  fetchSession,
+  getTranscript,
+  listConsultations,
+  sessionToMarkdown,
+  templateNameOf,
+  waitForSession,
+  type Session,
+} from "../sessions.js";
+import { c, confirm, done, fmtDate, info, parseMinutes, printJson, table } from "../ui.js";
 
 export function registerConsultations(program: Command) {
   const cmd = program.command("consultations").alias("c").description("Consultas: listar, ver notas, transcripciones, exportar");
@@ -19,32 +28,26 @@ export function registerConsultations(program: Command) {
     .option("--offset <n>", "saltar las primeras N", "0")
     .option("--status <estados>", `filtrar por estado (coma): ${SESSION_STATUSES.join(",")}`)
     .option("--count", "solo mostrar el total")
-    .option("--json", "salida JSON")
     .action(async (o) => {
-      const { accountId } = await currentClaims();
-      const filter: Record<string, unknown> = {
-        accountId,
-        status: o.status ? String(o.status).split(",") : [...SESSION_STATUSES],
+      const opts = {
+        search: o.search,
+        status: o.status ? String(o.status).split(",") : undefined,
         limit: Number(o.limit),
         offset: Number(o.offset),
-        orderBy: "createdAt",
-        orderDirection: "desc",
-        ...(o.search ? { query: o.search } : {}),
       };
       if (o.count) {
-        const { limit, offset, ...countFilter } = filter;
-        const { scribeSessionsPage } = await gql<{ scribeSessionsPage: { totalCount: number } }>(COUNT_SESSIONS, { filter: countFilter });
-        return o.json ? printJson(scribeSessionsPage) : console.log(scribeSessionsPage.totalCount);
+        const totalCount = await countConsultations(opts);
+        return wantJson() ? printJson({ totalCount }) : console.log(totalCount);
       }
-      const { scribeSessions } = await gql<{ scribeSessions: Session[] }>(LIST_SESSIONS, { filter });
-      if (o.json) return printJson(scribeSessions);
+      const scribeSessions = await listConsultations(opts);
+      if (wantJson()) return printJson(scribeSessions);
       table(
         scribeSessions.map((s) => ({
           id: s.id,
           fecha: fmtDate(s.createdAt),
           paciente: s.patient?.fullName ?? s.patientName ?? "—",
           estado: s.status,
-          plantilla: s.selectedTemplates?.find((t: any) => t.isPrimary)?.nameSnapshot ?? s.scribeSessionConfiguration?.name ?? "",
+          plantilla: templateNameOf(s) ?? "",
         })),
         ["id", "fecha", "paciente", "estado", "plantilla"],
       );
@@ -55,10 +58,9 @@ export function registerConsultations(program: Command) {
     .description("Muestra la nota clínica de una consulta")
     .argument("<id>")
     .option("-t, --transcript", "incluir la transcripción")
-    .option("--json", "salida JSON cruda (incluye todos los campos)")
     .action(async (id: string, o) => {
       const s = await fetchSession(id);
-      if (o.json) return printJson(s);
+      if (wantJson("document")) return printJson(s);
       process.stdout.write(await sessionToMarkdown(s, { transcript: o.transcript }));
     });
 
@@ -70,11 +72,11 @@ export function registerConsultations(program: Command) {
     .action(async (id: string, o) => {
       if (o.anonymized) {
         const t = await getAnonymizedTranscript(id);
-        if (t == null) throw new CliError("Esta consulta no tiene transcripción anonimizada.");
+        if (t == null) throw new CliError("Esta consulta no tiene transcripción anonimizada.", EXIT.NOT_FOUND);
         return console.log(t);
       }
       const t = await getTranscript(await fetchSession(id));
-      if (!t) throw new CliError("Esta consulta todavía no tiene transcripción.");
+      if (!t) throw new CliError("Esta consulta todavía no tiene transcripción.", EXIT.NOT_FOUND, `telepatia consultations wait ${id}`);
       if (t.anonymized) info(c.dim("(transcripción anonimizada por Telepatia)"));
       console.log(t.text);
     });
@@ -96,7 +98,7 @@ export function registerConsultations(program: Command) {
         }
         const file = ids.length > 1 ? `${o.out}-${id}.${o.format}` : o.out;
         await writeFile(file, body, { mode: 0o600 });
-        info(c.green(`✓ ${file}`));
+        done({ id, file }, c.green(`✓ ${file}`));
       }
     });
 
@@ -104,7 +106,6 @@ export function registerConsultations(program: Command) {
     .command("documents")
     .description("Documentos generados para una consulta (notas por plantilla, reportes)")
     .argument("<id>")
-    .option("--json", "salida JSON")
     .action(async (id: string, o) => {
       const { medicalRecordDocuments } = await gql<{ medicalRecordDocuments: { medicalRecordDocuments: Session[] } }>(
         MEDICAL_RECORD_DOCUMENTS,
@@ -113,7 +114,7 @@ export function registerConsultations(program: Command) {
         },
       );
       const docs = medicalRecordDocuments.medicalRecordDocuments;
-      if (o.json) return printJson(docs);
+      if (wantJson()) return printJson(docs);
       table(
         docs.map((d) => ({
           id: d.id,
@@ -130,10 +131,15 @@ export function registerConsultations(program: Command) {
     .command("wait")
     .description("Espera a que una consulta termine de procesarse")
     .argument("<id>")
-    .option("--timeout <min>", "minutos máximos", "30")
+    .option("--timeout <duración>", "tiempo máximo: 90s, 5m, 1h (número solo = minutos)", "30")
+    .addHelpText("after", "\nAgentes: usa un timeout menor al de tu herramienta (p.ej. --timeout 100s) y repite si sale con código 5.")
     .action(async (id: string, o) => {
-      const status = await waitForSession(id, Number(o.timeout));
-      info(status.startsWith("completed") ? c.green(`✓ ${status}`) : c.yellow(status));
+      const status = await waitForSession(id, parseMinutes(o.timeout, 30));
+      const ok = status.startsWith("completed") || status === "reviewed";
+      done(
+        { id, status, ...(ok ? { next: `telepatia consultations show ${id}` } : {}) },
+        ok ? c.green(`✓ ${status}`) : c.yellow(status),
+      );
     });
 
   cmd
@@ -143,7 +149,10 @@ export function registerConsultations(program: Command) {
     .option("--template <id>", "plantilla a usar")
     .action(async (id: string, o) => {
       const r = await regenerateNote(id, o.template);
-      info(`Solicitud enviada (${r?.status ?? "ok"}). Espera con: telepatia consultations wait ${id}`);
+      done(
+        { id, status: r?.status ?? "requested", next: `telepatia consultations wait ${id} --timeout 100s` },
+        `Solicitud enviada (${r?.status ?? "ok"}). Espera con: telepatia consultations wait ${id}`,
+      );
     });
 
   cmd
@@ -152,7 +161,8 @@ export function registerConsultations(program: Command) {
     .argument("<id>")
     .action(async (id: string) => {
       const r = await resolveSession(id);
-      info(
+      done(
+        { id, finalized: r.finalized ?? null, status: r.newStatus ?? null, actionsTaken: r.actionsTaken ?? [] },
         `finalizada: ${r.finalized ?? "?"} · estado: ${r.newStatus ?? "?"} · acciones: ${(r.actionsTaken ?? []).join(", ") || "ninguna"}`,
       );
     });
@@ -164,6 +174,8 @@ export function registerConsultations(program: Command) {
     .option("-y, --yes", "no pedir confirmación")
     .action(async (id: string, o) => {
       if (!o.yes) {
+        if (!process.stdin.isTTY)
+          throw new CliError("Eliminar requiere confirmación explícita.", EXIT.NEEDS_INPUT, `telepatia consultations delete ${id} --yes`);
         const s = await fetchSession(id);
         const ok = await confirm(
           `¿Eliminar la consulta de ${s.patient?.fullName ?? s.patientName ?? "paciente sin nombre"} (${fmtDate(s.createdAt)})?`,
@@ -171,6 +183,6 @@ export function registerConsultations(program: Command) {
         if (!ok) return info("Cancelado.");
       }
       await gql(DELETE_SESSION, { id, input: { status: "deleted" }, updateMode: "merge" });
-      info(c.green("✓ Consulta eliminada."));
+      done({ id, status: "deleted" }, c.green("✓ Consulta eliminada."));
     });
 }
