@@ -57,6 +57,7 @@ telepatia upload consulta.m4a --template "Medicina general"
 | Documento | Contenido |
 |---|---|
 | **[Guía completa](docs/GUIA.md)** | Instalación, login, cada comando con sus opciones y ejemplos, recetas, automatización, seguridad, solución de problemas, preguntas frecuentes |
+| [Con Claude y agentes](docs/GUIA.md#57-agentes-de-ia-mcp-skill-y-schema) · [SKILL.md](skills/telepatia/SKILL.md) | Servidor MCP, skill de Claude Code, modo agente y códigos de salida |
 | [Cobertura](docs/COBERTURA.md) | Todo lo que hace Telepatia Scribe y qué parte cubre el CLI (y por qué) |
 | [API](docs/API.md) | Cómo funciona la API de Telepatia por dentro (referencia técnica no oficial) |
 | [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Cambios](CHANGELOG.md) | Para desarrolladores |
@@ -133,6 +134,7 @@ La lista completa está en [docs/COBERTURA.md](docs/COBERTURA.md).
 
 - Las credenciales se guardan con permisos `600`, y `logout` las revoca y las borra.
 - El CLI no guarda datos de pacientes en caché ni envía telemetría: solo se comunica con los servidores de Telepatia.
+- Con Claude u otro agente, cuando usas el CLI desde Claude u otro agente de IA, lo que el agente lee (notas, transcripciones, nombres) entra en la conversación y lo procesa el proveedor del modelo. Hazlo solo si tu institución y la normativa de datos de salud de tu país lo permiten, y con cuentas que tengan los acuerdos adecuados (por ejemplo, un BAA o un DPA).
 - **Nunca incluyas datos de pacientes en issues.**
 
 ## Licencia
